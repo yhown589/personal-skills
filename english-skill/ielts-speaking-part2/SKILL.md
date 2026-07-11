@@ -38,7 +38,7 @@ The three answers within the same band must read like **three different test-tak
 
 ## 1.7 Output rules
 - Output exactly twelve blockquotes in ascending band order, three per band. Each blockquote contains one complete monologue as flowing prose (no headings or bullet lists inside).
-- **Semantic line breaks (mandatory)**: never put an entire monologue on a single line. After generating the text, insert line breaks at semantically natural points (a shift in scene, time, topic, or from narration to reflection), so the monologue spans multiple lines. Use a plain newline only — do NOT leave blank lines between the lines. As a rough guide, start a new line every 2–3 sentences when the sentences are long, or every 3–4 sentences when they are short — but semantic coherence takes priority over these counts; do not enforce them mechanically.
+- **Semantic line breaks (mandatory)**: never put an entire monologue on a single line. After generating the text, insert line breaks at semantically natural points (a shift in scene, time, topic, or from narration to reflection), so the monologue spans multiple paragraphs. Leave a blank line between them so each block reads as its own paragraph. As a rough guide, start a new paragraph every 2–3 sentences when the sentences are long, or every 3–4 sentences when they are short — but semantic coherence takes priority over these counts; do not enforce them mechanically.
 - Wrap the entire output in a single fenced code block (```) so the raw `<blockquote>` tags are shown as-is instead of being rendered.
 - Follow the output format strictly and output nothing else: no intro or closing remarks, no headings, no explanations, no extra text before or after the code block — the response must consist of the code block alone.
 

@@ -28,9 +28,9 @@ When this skill is invoked, execute ONLY what this skill defines: read the given
 
 Read the file at $ARGUMENTS, then segment its content:
 
-1. A **cue card block** is a run of consecutive lines containing English text with NO blank line between them. A Part 2 cue card typically spans several such lines: the "Describe..." topic line, an optional "You should say:" line, and its bullet points — all of these belong to ONE block. A blank line (or the start/end of file) terminates a block.
-2. Lines that contain no English text (e.g. blank lines, existing `<blockquote>` tags, lines consisting only of Chinese characters, code fences, or punctuation) are never part of a cue card block.
-3. **Skip rule (already answered)**: if the content immediately following a cue card block (ignoring at most one blank line) is a `<blockquote>` tag, that cue card has already been processed. Skip it entirely — do not regenerate, do not modify its existing answers.
+1. A **cue card block** starts at a heading line whose text contains a timestamp in the format `YYYY-MM-DD HH:mm:ss.SSS` (e.g. `# 1 2026-07-10 18:18:04.830`) and extends until the first `<blockquote` tag, the next such heading line, or the end of file — whichever comes first. Everything between the heading and that terminator is the block's content. The heading line itself is a marker, not cue card text: the cue card is the English text in the block's content (typically the "Describe..." topic line, an optional "You should say:" line, and its bullet points). Content not belonging to any heading-started block is ignored.
+2. **Blockquote classification**: a `<blockquote data-score="...">` element holds generated answers. Any `<blockquote>` whose opening tag does NOT start with `<blockquote data-score=` (e.g. `<blockquote data-field="source">`) is **cue card metadata** attached to the block above it — everything from its opening tag to its `</blockquote>` is never cue card text, it is NOT an already-answered marker, and it must be preserved byte-for-byte where it is.
+3. **Skip rule (already answered)**: a cue card has already been processed if, after its block content and any immediately following metadata blockquote(s) (ignoring at most one blank line), the next content is a `<blockquote data-score=` tag. Skip it entirely — do not regenerate, do not modify its existing answers.
 
 ## 1.4 One-at-a-Time Processing (mandatory)
 
@@ -51,7 +51,7 @@ Unlike a one-shot batch, cue cards MUST be processed **strictly one at a time, i
 
 For the cue card just processed, edit the file so that:
 
-1. Its twelve `<blockquote data-score="...">` elements (in ascending band order, three per band) are inserted directly below the cue card block, with **no blank line** between the block's last line and the first `<blockquote>` tag (see the example in Section 1.7).
+1. Its twelve `<blockquote data-score="...">` elements (in ascending band order, three per band) are inserted directly below the cue card block AND any metadata blockquote(s) attached to it — i.e. after the closing `</blockquote>` of e.g. a `data-field="source"` block, or after the block's last content line if there is no metadata blockquote — with **no blank line** before the first `<blockquote data-score=` tag (see the example in Section 1.7). Metadata blockquotes stay exactly where they are.
 2. Skipped (already-answered) cue cards are left exactly as they are, per the Skip rule in Section 1.3 (§3).
 3. Everything else is preserved byte-for-byte: do not reorder, reformat, or delete any existing content. The only difference after each edit is that one cue card's newly inserted blockquotes.
 4. Each cue card gets its own write (step 3 of Section 1.4) — do NOT accumulate multiple cue cards' answers into a single write.
@@ -65,28 +65,37 @@ After all cue cards are processed, output a single line: `Answered N cue card(s)
 File content before:
 
 ```
+# 1 2026-07-10 18:18:04.830
 Describe a trip you enjoyed.
 You should say:
 - where you went
 - who you went with
 - what you did there
 and explain why you enjoyed it.
+<blockquote data-field="source">
+https://example.com/part2-may-2025
+</blockquote>
 
+# 2 2026-07-10 18:20:11.402
 Describe a book you recently read.
 <blockquote data-score="6.0">
 ...existing answers...
 </blockquote>
 ```
 
-File content after (first cue card answered, second skipped):
+File content after (first cue card answered, second skipped; the source metadata block is preserved and the answers go below it):
 
 ```
+# 1 2026-07-10 18:18:04.830
 Describe a trip you enjoyed.
 You should say:
 - where you went
 - who you went with
 - what you did there
 and explain why you enjoyed it.
+<blockquote data-field="source">
+https://example.com/part2-may-2025
+</blockquote>
 <blockquote data-score="6.0">
 [candidate 1's 6.0 monologue]
 </blockquote>
@@ -104,6 +113,7 @@ and explain why you enjoyed it.
 [candidate 3's 9.0 monologue]
 </blockquote>
 
+# 2 2026-07-10 18:20:11.402
 Describe a book you recently read.
 <blockquote data-score="6.0">
 ...existing answers...

@@ -28,9 +28,9 @@ When this skill is invoked, execute ONLY what this skill defines: read the given
 
 Read the file at $ARGUMENTS, then segment its content:
 
-1. A **question block** is a run of consecutive lines containing English text with NO blank line between them (normally a single line holding one Part 1 question). A blank line (or the start/end of file) terminates a block.
-2. Lines that contain no English text (e.g. blank lines, existing `<blockquote>` tags, lines consisting only of Chinese characters, code fences, or punctuation) are never part of a question block.
-3. **Skip rule (already answered)**: if the content immediately following a question block (ignoring at most one blank line) is a `<blockquote>` tag, that question has already been processed. Skip it entirely — do not regenerate, do not modify its existing answers.
+1. A **question block** starts at a heading line whose text contains a timestamp in the format `YYYY-MM-DD HH:mm:ss.SSS` (e.g. `# 1 2026-07-10 18:18:04.830`) and extends until the first `<blockquote` tag, the next such heading line, or the end of file — whichever comes first. Everything between the heading and that terminator is the block's content. The heading line itself is a marker, not question text: the question is the English text in the block's content (normally a single line holding one Part 1 question). Content not belonging to any heading-started block is ignored.
+2. **Blockquote classification**: a `<blockquote data-score="...">` element holds generated answers. Any `<blockquote>` whose opening tag does NOT start with `<blockquote data-score=` (e.g. `<blockquote data-field="source">`) is **question metadata** attached to the block above it — everything from its opening tag to its `</blockquote>` is never question text, it is NOT an already-answered marker, and it must be preserved byte-for-byte where it is.
+3. **Skip rule (already answered)**: a question has already been processed if, after its block content and any immediately following metadata blockquote(s) (ignoring at most one blank line), the next content is a `<blockquote data-score=` tag. Skip it entirely — do not regenerate, do not modify its existing answers.
 
 ## 1.4 One-at-a-Time Processing (mandatory)
 
@@ -51,7 +51,7 @@ Unlike a one-shot batch, questions MUST be processed **strictly one at a time, i
 
 For the question just processed, edit the file so that:
 
-1. Its twelve `<blockquote data-score="...">` elements (in ascending band order, three per band) are inserted directly below the question block, with **no blank line** between the question's last line and the first `<blockquote>` tag (see the example in Section 1.7).
+1. Its twelve `<blockquote data-score="...">` elements (in ascending band order, three per band) are inserted directly below the question block AND any metadata blockquote(s) attached to it — i.e. after the closing `</blockquote>` of e.g. a `data-field="source"` block, or after the block's last content line if there is no metadata blockquote — with **no blank line** before the first `<blockquote data-score=` tag (see the example in Section 1.7). Metadata blockquotes stay exactly where they are.
 2. Skipped (already-answered) questions are left exactly as they are, per the Skip rule in Section 1.3 (§3).
 3. Everything else is preserved byte-for-byte: do not reorder, reformat, or delete any existing content. The only difference after each edit is that one question's newly inserted blockquotes.
 4. Each question gets its own write (step 3 of Section 1.4) — do NOT accumulate multiple questions' answers into a single write.
@@ -65,18 +65,27 @@ After all questions are processed, output a single line: `Answered N question(s)
 File content before:
 
 ```
+# 1 2026-07-10 18:18:04.830
 Do you like reading books?
+<blockquote data-field="source">
+https://example.com/part1-may-2025
+</blockquote>
 
+# 2 2026-07-10 18:20:11.402
 Do you prefer tea or coffee?
 <blockquote data-score="6.0">
 ...existing answers...
 </blockquote>
 ```
 
-File content after (first question answered, second skipped):
+File content after (first question answered, second skipped; the source metadata block is preserved and the answers go below it):
 
 ```
+# 1 2026-07-10 18:18:04.830
 Do you like reading books?
+<blockquote data-field="source">
+https://example.com/part1-may-2025
+</blockquote>
 <blockquote data-score="6.0">
 [candidate 1's 6.0 answer]
 </blockquote>
@@ -94,6 +103,7 @@ Do you like reading books?
 [candidate 3's 9.0 answer]
 </blockquote>
 
+# 2 2026-07-10 18:20:11.402
 Do you prefer tea or coffee?
 <blockquote data-score="6.0">
 ...existing answers...
