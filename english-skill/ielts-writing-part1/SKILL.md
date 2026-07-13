@@ -113,6 +113,7 @@ Process all question blocks in a single pass — generate every block's reports 
 3. **Blank-line rule**: separate the inserted output from the existing content it follows with exactly **one blank line**; answer units within the output are also separated by one blank line each, as shown in Section 1.4.
 4. Preserve everything else byte-for-byte: do not reorder, reformat, or delete any existing content. The only difference between the original and the written file is the newly inserted answer units.
 5. **No-op rule**: if there is nothing to insert — the file contains no question blocks, or every block is skipped by the skip rules (Section 1.6.3) — do NOT write the file at all; just output the completion report (e.g. `Answered 0 question block(s), skipped M already-answered block(s), skipped P incomplete block(s).`).
+6. **Block independence**: generate each block's reports as if it were the only block in the file — do not let other blocks' questions or your reports for them influence wording, grouping choices, or paraphrasing; do not reuse the same paraphrase patterns or sentence openings across blocks.
 
 ### 1.6.3 Skip rules
 
