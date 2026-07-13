@@ -1,6 +1,6 @@
 ---
 name: english-rewriter
-description: Rewrite English text into three improved versions (Direct, Natural/Casual, Technical/Precise). Input is either an English text (rewrite in chat) or a file path (segment the file into question blocks by timestamp headings and insert improved versions into the file). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
+description: Rewrite English text into three improved versions (Direct, Natural, Technical). Input is either an English text (rewrite in chat) or a file path (segment the file into question blocks by timestamp headings and insert improved versions into the file). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
 disable-model-invocation: true
 ---
 
