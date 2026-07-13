@@ -36,7 +36,7 @@ Read the file at $ARGUMENTS, then segment its content:
 
 Rewrite all non-skipped blocks in a single pass — rewrite every one of them first (do not write anything to the file yet), then emit the whole result in one write (Section 1.4).
 
-1. Read the `english-rewriter` skill definition at `<project root>/.claude/skills/english-rewriter/SKILL.md` (where `<project root>` is the current project's root directory) (once, before rewriting any block).
+1. Read the `english-rewriter` skill definition: it is the base skill of this batch skill, located in the sibling folder named `english-rewriter` (this batch skill's folder name without the `-batch` suffix) under the same skills directory — read that folder's `SKILL.md` (once, before rewriting any block).
 2. For each rewrite block that is NOT skipped, rewrite it by strictly applying that skill's rewriting rules (its "Strict Rules" section) and produce output exactly in that skill's "Output Format", except: do NOT wrap the output in a fenced code block — insert the three `<blockquote>` elements as plain lines. Do not invent your own dimensions or format.
 3. **Line-count rule**: within each `<blockquote>`, the rewritten text must have exactly the same number of lines as the original block — rewrite line by line, never merging multiple original lines into one or splitting one line into several.
 

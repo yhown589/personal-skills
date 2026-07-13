@@ -36,7 +36,7 @@ Read the file at $ARGUMENTS, then segment its content:
 
 Unlike a one-shot batch, cue cards MUST be processed **strictly one at a time, in file order**:
 
-1. Read the `ielts-speaking-part2` skill definition at `D:\programming\project-owner\dev-note\md\AI Q&A\skills\ielts-speaking-part2\SKILL.md` (once, before processing any cue card).
+1. Read the `ielts-speaking-part2` skill definition: it is the base skill of this batch skill, located in the sibling folder named `ielts-speaking-part2` (this batch skill's folder name without the `-batch` suffix) under the same skills directory — read that folder's `SKILL.md` (once, before processing any cue card).
 2. Take the **first** non-skipped cue card block. Treat its full text (topic line plus any bullet points) as `{{CUE_CARD}}` and generate the twelve banded monologues (three each for 6.0 / 7.0 / 8.0 / 9.0) by strictly applying that skill's exam rules, band-differentiating features, and answer requirements — except: do NOT wrap the output in a fenced code block — insert the twelve `<blockquote data-score="...">` elements as plain lines.
 3. **Immediately write** that cue card's twelve blockquotes into the file (per Section 1.5) before even looking at the next cue card.
 4. Then move to the next non-skipped cue card and repeat steps 2–3 until every cue card is processed.

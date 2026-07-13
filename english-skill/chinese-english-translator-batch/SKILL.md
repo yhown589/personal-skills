@@ -36,7 +36,7 @@ Read the file at $ARGUMENTS, then segment its content:
 
 Translate all non-skipped blocks in a single pass — translate every one of them first (do not write anything to the file yet), then emit the whole result in one write (Section 1.5).
 
-1. Read the `chinese-english-translator` skill definition at `<project root>/.claude/skills/chinese-english-translator/SKILL.md` (where `<project root>` is the current project's root directory) (once, before translating any block).
+1. Read the `chinese-english-translator` skill definition: it is the base skill of this batch skill, located in the sibling folder named `chinese-english-translator` (this batch skill's folder name without the `-batch` suffix) under the same skills directory — read that folder's `SKILL.md` (once, before translating any block).
 2. For each translation block that is NOT skipped, translate it by strictly applying that skill's translation rules (its "Strict Rules" section) and produce output exactly in that skill's "Output Format". Do not invent your own dimensions or format.
 3. **Line-count rule**: within each `<blockquote>`, the translated text must have exactly the same number of lines as the original Chinese block — translate line by line, never merging multiple original lines into one or splitting one line into several.
 

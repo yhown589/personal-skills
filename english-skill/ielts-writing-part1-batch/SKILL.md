@@ -36,7 +36,7 @@ Read the file at $ARGUMENTS, then segment its content:
 
 Unlike a one-shot batch, task prompts MUST be processed **strictly one at a time, in file order**:
 
-1. Read the `ielts-writing-part1` skill definition at `D:\programming\project-owner\dev-note\md\AI Q&A\skills\ielts-writing-part1\SKILL.md` (once, before processing any prompt).
+1. Read the `ielts-writing-part1` skill definition: it is the base skill of this batch skill, located in the sibling folder named `ielts-writing-part1` (this batch skill's folder name without the `-batch` suffix) under the same skills directory — read that folder's `SKILL.md` (once, before processing any prompt).
 2. Take the **first** non-skipped task prompt block. Treat its full text as `{{TASK_PROMPT}}` and generate the twelve banded reports (three each for 6.0 / 7.0 / 8.0 / 9.0) by strictly applying that skill's exam rules, band-differentiating features, and report requirements — except: do NOT wrap the output in a fenced code block — insert the twelve `<blockquote data-score="...">` elements as plain lines.
 3. **Immediately write** that prompt's twelve blockquotes into the file (per Section 1.5) before even looking at the next prompt.
 4. Then move to the next non-skipped prompt and repeat steps 2–3 until every prompt is processed.
