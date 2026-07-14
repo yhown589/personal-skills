@@ -100,9 +100,9 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
    - **Start line (inclusive)**: a heading line that contains a timestamp in the format `YYYY-MM-DD HH:mm:ss.SSS`.
    - **End bound**: the next heading line containing such a timestamp (**exclusive** — not part of the block), or the end of the file (**inclusive**) if there is no next heading.
 2. Content before the first question block is ignored.
-3. A block may contain **code-block metadata lines**: a line matching the pattern `&&any content&&` (a pair of `&&` markers wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question.
+3. A block may contain **code-block metadata lines**: a line matching the pattern `<!-- any content -->` (an HTML comment `<!-- ... -->` wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question.
 4. **The question** = everything from the line immediately after the start line down to its **question end bound**, taken as a whole. Do not pick out a single "question line" or filter anything out — treat it all as one complete task prompt.
-   - **Question end bound**: whichever comes first — the block's first `&&any content&&` metadata line (**exclusive**), or the block's own end bound (§1).
+   - **Question end bound**: whichever comes first — the block's first `<!-- any content -->` metadata line (**exclusive**), or the block's own end bound (§1).
 
 ### 1.6.2 Answering & insertion rules
 
@@ -138,7 +138,7 @@ The chart shows the percentage of households with internet access in two countri
 
 # 2026-07-14 10:25:10.456 Practice
 The table shows average monthly spending in two cities: City X spends $400 on food, $900 on housing and $150 on transport; City Y spends $350, $1200 and $300 respectively.
-&&my earlier draft&&
+<!-- my earlier draft -->
 ```
 my earlier draft report
 ```
@@ -174,7 +174,7 @@ The chart shows internet access in two countries from 2000 to 2020. ...
 
 # 2026-07-14 10:25:10.456 Practice
 The table shows average monthly spending in two cities: City X spends $400 on food, $900 on housing and $150 on transport; City Y spends $350, $1200 and $300 respectively.
-&&my earlier draft&&
+<!-- my earlier draft -->
 ```
 my earlier draft report
 ```
