@@ -106,7 +106,7 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
 
 ### 1.6.2 Answering & insertion rules
 
-Process all question blocks in a single pass — generate every block's reports first (do not write anything to the file yet), then emit the whole result in one single whole-file write. Do NOT edit the file block by block.
+Process question blocks **one by one, in file order**: generate one block's reports, immediately insert them into the file with an edit, then move on to generate the next block. Do NOT batch-generate all reports before writing — each block's reports must be written to the file before the next block's reports are generated.
 
 1. For each question block, apply the core task (Section 1.3) to the question (per Section 1.6.1 §4) and produce the per-question output exactly as defined in Section 1.4 — the `%%optimized-score=...%%` markers and their code blocks are inserted as-is, with NO extra outer code block (the outer wrap is Text Mode only).
 2. **Insertion position**: if the question block already contains one or more fenced code blocks, insert the output immediately after the **last** fenced code block within that block; if it contains no fenced code block, insert the output directly below the question content (still inside the block, before the next block's heading or the end of file).
@@ -124,7 +124,7 @@ Skip a question block entirely — do not answer it or modify its existing conte
 
 ### 1.6.4 Completion report
 
-After the write is done, output a single line: `Answered N question block(s), skipped M already-answered block(s), skipped P incomplete block(s).` Nothing else.
+After all blocks have been processed, output a single line: `Answered N question block(s), skipped M already-answered block(s), skipped P incomplete block(s).` Nothing else.
 
 ### 1.6.5 Example
 
