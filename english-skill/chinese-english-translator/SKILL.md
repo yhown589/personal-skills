@@ -40,20 +40,20 @@ For every question (the text to translate), provide English renderings across th
 
 ## 1.4 Per-question output format
 
-For each question, the output is three **answer units**, one per dimension, in the order above. Each answer unit is a `%%optimized-type=...%%` marker line followed by a fenced code block containing that version:
+For each question, the output is three **answer units**, one per dimension, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
 
 ````
-%%optimized-type=direct%%
+<!-- optimized-type=direct -->
 ```
 [Direct version]
 ```
 
-%%optimized-type=natural%%
+<!-- optimized-type=natural -->
 ```
 [Natural version]
 ```
 
-%%optimized-type=technical%%
+<!-- optimized-type=technical -->
 ```
 [Technical version]
 ```
@@ -77,7 +77,7 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
    - **Start line (inclusive)**: a heading line that contains a timestamp in the format `YYYY-MM-DD HH:mm:ss.SSS`.
    - **End bound**: the next heading line containing such a timestamp (**exclusive** — not part of the block), or the end of the file (**inclusive**) if there is no next heading.
 2. Content before the first question block is ignored.
-3. A block may contain **code-block metadata lines**: a line matching the pattern `<!-- any content -->` (an HTML comment `<!-- ... -->` wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question.
+3. A block may contain **code-block metadata lines**: a line matching the pattern `<!-- any content -->` (an HTML comment `<!-- ... -->` wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question. **Exception**: an HTML comment containing the string `optimized` is an answer marker (Section 1.4), NOT a metadata line.
 4. **The question** = everything from the line immediately after the start line down to its **question end bound**, taken as a whole. Do not pick out a single "question line" or filter anything out — treat it all as one complete text to translate.
    - **Question end bound**: whichever comes first — the block's first `<!-- any content -->` metadata line (**exclusive**), or the block's own end bound (§1).
 
@@ -85,7 +85,7 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
 
 Process all question blocks in a single pass — translate every block first (do not write anything to the file yet), then emit the whole result in one single whole-file write. Do NOT edit the file block by block.
 
-1. For each question block, apply the core task (Section 1.3) to the question (per Section 1.6.1 §4) and produce the per-question output exactly as defined in Section 1.4 — the `%%optimized-type=...%%` markers and their code blocks are inserted as-is, with NO extra outer code block (the outer wrap is Text Mode only).
+1. For each question block, apply the core task (Section 1.3) to the question (per Section 1.6.1 §4) and produce the per-question output exactly as defined in Section 1.4 — the `<!-- optimized-type=... -->` markers and their code blocks are inserted as-is, with NO extra outer code block (the outer wrap is Text Mode only).
 2. **Insertion position**: if the question block already contains one or more fenced code blocks, insert the output immediately after the **last** fenced code block within that block; if it contains no fenced code block, insert the output directly below the question content (still inside the block, before the next block's heading or the end of file).
 3. **Blank-line rule**: separate the inserted output from the existing content it follows with exactly **one blank line**; answer units within the output are also separated by one blank line each, as shown in Section 1.4.
 4. Preserve everything else byte-for-byte: do not reorder, reformat, or delete any existing content. The only difference between the original and the written file is the newly inserted answer units.
@@ -93,7 +93,7 @@ Process all question blocks in a single pass — translate every block first (do
 
 ### 1.6.3 Skip rule (already translated)
 
-If a marker line starting with `%%optimized-type=` already appears below the question block's question content, that block has already been translated — skip it entirely; do not re-translate or modify its existing translations.
+If an HTML comment line containing the string `optimized` (an answer marker) already appears below the question block's question content, that block has already been translated — skip it entirely; do not re-translate or modify its existing translations.
 
 ### 1.6.4 Completion report
 
@@ -117,17 +117,17 @@ my earlier draft translation
 # 2026-07-14 10:30:02.789 Note
 已翻译过的示例内容
 
-%%optimized-type=direct%%
+<!-- optimized-type=direct -->
 ```
 An example of already translated content.
 ```
 
-%%optimized-type=natural%%
+<!-- optimized-type=natural -->
 ```
 Sample content that's already been translated.
 ```
 
-%%optimized-type=technical%%
+<!-- optimized-type=technical -->
 ```
 A previously translated sample entry.
 ```
@@ -141,17 +141,17 @@ Block 1 is translated directly below its question content, block 2 is translated
 # 2026-07-14 10:23:45.123 Note
 以.astro为后缀的文件名是什么编程语言
 
-%%optimized-type=direct%%
+<!-- optimized-type=direct -->
 ```
 What programming language is a file with a .astro suffix?
 ```
 
-%%optimized-type=natural%%
+<!-- optimized-type=natural -->
 ```
 What programming language uses the .astro file extension?
 ```
 
-%%optimized-type=technical%%
+<!-- optimized-type=technical -->
 ```
 Which programming language or framework does the .astro file extension belong to?
 ```
@@ -163,17 +163,17 @@ Which programming language or framework does the .astro file extension belong to
 my earlier draft translation
 ```
 
-%%optimized-type=direct%%
+<!-- optimized-type=direct -->
 ```
 How can I view the current directory in the terminal?
 ```
 
-%%optimized-type=natural%%
+<!-- optimized-type=natural -->
 ```
 How do I check what folder I'm in from the terminal?
 ```
 
-%%optimized-type=technical%%
+<!-- optimized-type=technical -->
 ```
 What is the command to display the current working directory in a terminal session?
 ```
@@ -181,17 +181,17 @@ What is the command to display the current working directory in a terminal sessi
 # 2026-07-14 10:30:02.789 Note
 已翻译过的示例内容
 
-%%optimized-type=direct%%
+<!-- optimized-type=direct -->
 ```
 An example of already translated content.
 ```
 
-%%optimized-type=natural%%
+<!-- optimized-type=natural -->
 ```
 Sample content that's already been translated.
 ```
 
-%%optimized-type=technical%%
+<!-- optimized-type=technical -->
 ```
 A previously translated sample entry.
 ```

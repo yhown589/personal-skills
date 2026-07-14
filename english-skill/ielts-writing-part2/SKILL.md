@@ -48,32 +48,32 @@ The three essays within the same band must read like **three different test-take
 
 ## 1.4 Per-question output format
 
-For each question, the output is twelve **answer units** in ascending band order, three per band. Each answer unit is a `%%optimized-score=...%%` marker line followed by a fenced code block containing that essay:
+For each question, the output is twelve **answer units** in ascending band order, three per band. Each answer unit is a `<!-- optimized-score=... -->` marker line followed by a fenced code block containing that essay:
 
 ````
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 [candidate 1's 6.0 essay]
 ```
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 [candidate 2's 6.0 essay]
 ```
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 [candidate 3's 6.0 essay]
 ```
 
-%%optimized-score=7.0%%
+<!-- optimized-score=7.0 -->
 ```
 [candidate 1's 7.0 essay]
 ```
 
 ... (same pattern through 7.0, 8.0, and 9.0)
 
-%%optimized-score=9.0%%
+<!-- optimized-score=9.0 -->
 ```
 [candidate 3's 9.0 essay]
 ```
@@ -99,7 +99,7 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
    - **Start line (inclusive)**: a heading line that contains a timestamp in the format `YYYY-MM-DD HH:mm:ss.SSS`.
    - **End bound**: the next heading line containing such a timestamp (**exclusive** — not part of the block), or the end of the file (**inclusive**) if there is no next heading.
 2. Content before the first question block is ignored.
-3. A block may contain **code-block metadata lines**: a line matching the pattern `<!-- any content -->` (an HTML comment `<!-- ... -->` wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question.
+3. A block may contain **code-block metadata lines**: a line matching the pattern `<!-- any content -->` (an HTML comment `<!-- ... -->` wrapping arbitrary content) is metadata describing the fenced code block immediately below it. Metadata lines and their code blocks belong to the block, but are NOT part of the question. **Exception**: an HTML comment containing the string `optimized` is an answer marker (Section 1.4), NOT a metadata line.
 4. **The question** = everything from the line immediately after the start line down to its **question end bound**, taken as a whole. Do not pick out a single "question line" or filter anything out — treat it all as one complete essay question.
    - **Question end bound**: whichever comes first — the block's first `<!-- any content -->` metadata line (**exclusive**), or the block's own end bound (§1).
 
@@ -107,7 +107,7 @@ Read the file at `{{INPUT}}`, then segment its content into **question blocks**:
 
 Process question blocks **one by one, in file order**: generate one block's essays, immediately insert them into the file with an edit, then move on to generate the next block. Do NOT batch-generate all essays before writing — each block's essays must be written to the file before the next block's essays are generated.
 
-1. For each question block, apply the core task (Section 1.3) to the question (per Section 1.6.1 §4) and produce the per-question output exactly as defined in Section 1.4 — the `%%optimized-score=...%%` markers and their code blocks are inserted as-is, with NO extra outer code block (the outer wrap is Text Mode only).
+1. For each question block, apply the core task (Section 1.3) to the question (per Section 1.6.1 §4) and produce the per-question output exactly as defined in Section 1.4 — the `<!-- optimized-score=... -->` markers and their code blocks are inserted as-is, with NO extra outer code block (the outer wrap is Text Mode only).
 2. **Insertion position**: if the question block already contains one or more fenced code blocks, insert the output immediately after the **last** fenced code block within that block; if it contains no fenced code block, insert the output directly below the question content (still inside the block, before the next block's heading or the end of file).
 3. **Blank-line rule**: separate the inserted output from the existing content it follows with exactly **one blank line**; answer units within the output are also separated by one blank line each, as shown in Section 1.4.
 4. Preserve everything else byte-for-byte: do not reorder, reformat, or delete any existing content. The only difference between the original and the written file is the newly inserted answer units.
@@ -116,7 +116,7 @@ Process question blocks **one by one, in file order**: generate one block's essa
 
 ### 1.6.3 Skip rule (already answered)
 
-If a marker line starting with `%%optimized-score=` already appears below the question block's question content, that block has already been answered — skip it entirely; do not re-answer or modify its existing answers.
+If an HTML comment line containing the string `optimized` (an answer marker) already appears below the question block's question content, that block has already been answered — skip it entirely; do not re-answer or modify its existing answers.
 
 ### 1.6.4 Completion report
 
@@ -142,7 +142,7 @@ my earlier draft essay
 # 2026-07-14 10:30:02.789 Practice
 Some argue that governments should invest more in public transport. What are the causes of traffic congestion and what solutions can you suggest?
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 Nowadays, traffic congestion is a big problem in many cities. ...
 ```
@@ -158,7 +158,7 @@ Block 1 is answered directly below its question content, block 2 is answered aft
 # 2026-07-14 10:23:45.123 Practice
 Some people believe that university education should be free for all students. To what extent do you agree or disagree?
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 Nowadays, many people think university should be free for everyone. ...
 ```
@@ -172,7 +172,7 @@ Many people work from home nowadays. Discuss the advantages and disadvantages of
 my earlier draft essay
 ```
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 In recent years, more and more people are working from home. ...
 ```
@@ -182,7 +182,7 @@ In recent years, more and more people are working from home. ...
 # 2026-07-14 10:30:02.789 Practice
 Some argue that governments should invest more in public transport. What are the causes of traffic congestion and what solutions can you suggest?
 
-%%optimized-score=6.0%%
+<!-- optimized-score=6.0 -->
 ```
 Nowadays, traffic congestion is a big problem in many cities. ...
 ```
