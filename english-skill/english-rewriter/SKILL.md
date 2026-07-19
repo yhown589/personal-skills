@@ -1,6 +1,6 @@
 ---
 name: english-rewriter
-description: Rewrite English text into three improved versions (Spoken, Written, Concise). Input is an English text (rewrite in chat), a file path (segment the file into question blocks by timestamp headings and insert improved versions into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
+description: Rewrite English text into four improved versions (Direct, Spoken, Written, Concise). Input is an English text (rewrite in chat), a file path (segment the file into question blocks by timestamp headings and insert improved versions into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
 disable-model-invocation: true
 ---
 
@@ -27,13 +27,14 @@ Store the user's input in a variable: `{{INPUT}}` = $ARGUMENTS
 
 ## 1.3 Core task (per question)
 
-For every question (the text to rewrite), provide rewritten versions across the following three distinct registers, in this order:
+For every question (the text to rewrite), provide rewritten versions across the following four distinct registers, in this order:
 
-1. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
-2. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
-3. **Concise**: The shortest clear version that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
+1. **Direct**: The minimal-change correction — stay as close to the original wording and sentence structure as possible, fixing only grammar, word form, and errors. This is the baseline the other three depart from.
+2. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
+3. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
+4. **Concise**: The shortest clear version that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
 
-**Maximize contrast (avoid homogenization)**: the three versions must be genuinely different from one another, not minor word swaps of the same sentence. Deliberately vary sentence structure, word choice, and length across the three — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, rewrite at least one until all three are clearly distinct. The meaning must stay the same; the surface form must not.
+**Maximize contrast (avoid homogenization)**: the four versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the original; Spoken, Written, and Concise must each visibly depart from it and from each other. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, rewrite at least one until all four are clearly distinct. The meaning must stay the same; the surface form must not.
 
 **Line preservation**: Each rewritten version must have exactly the same number of lines as the input text, with a one-to-one correspondence — line N of the output rewrites line N of the input. Never add, remove, merge, or split lines; keep blank lines in place. If the input is a single line, each version must be a single line.
 
@@ -43,9 +44,14 @@ For every question (the text to rewrite), provide rewritten versions across the 
 
 ## 1.4 Per-question output format
 
-For each question, the output is three **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
+For each question, the output is four **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
 
 ````
+<!-- optimized-type=direct -->
+```
+[Direct version]
+```
+
 <!-- optimized-type=spoken -->
 ```
 [Spoken version]
@@ -127,6 +133,11 @@ my earlier draft version
 # 2026-07-14 10:30:02.789 Note
 An already rewritten example sentence.
 
+<!-- optimized-type=direct -->
+```
+An example sentence that has already been rewritten.
+```
+
 <!-- optimized-type=spoken -->
 ```
 Here's a sentence someone already redid.
@@ -151,6 +162,11 @@ Block 1 is rewritten directly below its question content, block 2 is rewritten a
 # 2026-07-14 10:23:45.123 Note
 What programming language is used for files ending in .astro?
 
+<!-- optimized-type=direct -->
+```
+Which programming language is used for files ending in .astro?
+```
+
 <!-- optimized-type=spoken -->
 ```
 So what language do you actually write .astro files in?
@@ -173,6 +189,11 @@ How to see current directory in terminal
 my earlier draft version
 ```
 
+<!-- optimized-type=direct -->
+```
+How to see the current directory in the terminal
+```
+
 <!-- optimized-type=spoken -->
 ```
 How do I see what folder I'm in from the terminal?
@@ -190,6 +211,11 @@ Show current directory in terminal?
 
 # 2026-07-14 10:30:02.789 Note
 An already rewritten example sentence.
+
+<!-- optimized-type=direct -->
+```
+An example sentence that has already been rewritten.
+```
 
 <!-- optimized-type=spoken -->
 ```
