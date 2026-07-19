@@ -8,6 +8,9 @@
  *   node blocks.js parse <file>                  Print the file's question blocks as a JSON array.
  *   node blocks.js write <file> <blocks.json>    Rebuild <file> from the (output-filled) JSON array.
  *   node blocks.js set   <file> <i> <out.txt>    Set block #i's output from a text file and write immediately.
+ *
+ * `write` and `set` accept `-` in place of the input path to read that payload from stdin,
+ * so a caller that must not create temporary files can pipe it instead.
  *   node blocks.js sync  <original> <copy>       Append blocks present in <original> but missing from <copy>.
  *
  * `write` is the batch path (fill every block, then one whole-file write).
@@ -44,6 +47,14 @@ function hasAnswerMarker(questionMetaData) {
 /** Read UTF-8 and drop a leading BOM (PowerShell's `Out-File -Encoding utf8` emits one). */
 function read(file) {
   return fs.readFileSync(file, 'utf8').replace(/^﻿/, '');
+}
+
+/**
+ * Read a content argument. `-` means "read stdin instead of a file", so callers that must not
+ * create temporary files can pipe the payload in. Any other value is treated as a file path.
+ */
+function readInput(pathOrDash) {
+  return pathOrDash === '-' ? read(0) : read(pathOrDash);
 }
 
 /** A time-header line, per mdFileUtils.splitTimeHeader. */
@@ -162,11 +173,11 @@ function main() {
   }
 
   if (cmd === 'write') {
-    if (!a || !b) throw new Error('usage: blocks.js write <file> <blocks.json>');
+    if (!a || !b) throw new Error('usage: blocks.js write <file> <blocks.json|->');
     const text = read(a);
     const { preamble } = parse(text);
-    const blocks = JSON.parse(read(b));
-    if (!Array.isArray(blocks)) throw new Error('blocks.json must contain a JSON array');
+    const blocks = JSON.parse(readInput(b));
+    if (!Array.isArray(blocks)) throw new Error('blocks input must be a JSON array');
     fs.writeFileSync(a, assemble(preamble, blocks, eolOf(text)), 'utf8');
     const filled = blocks.filter((x) => (x.output || '').trim()).length;
     process.stdout.write(`wrote ${blocks.length} block(s), ${filled} with new output\n`);
@@ -176,7 +187,7 @@ function main() {
   if (cmd === 'set') {
     const outFile = process.argv[5];
     if (!a || b === undefined || !outFile) {
-      throw new Error('usage: blocks.js set <file> <blockIndex> <outputFile>');
+      throw new Error('usage: blocks.js set <file> <blockIndex> <outputFile|->');
     }
     const index = Number(b);
     const text = read(a);
@@ -187,7 +198,7 @@ function main() {
     if (blocks[index].skip) {
       throw new Error(`block ${index} is already answered (skip: true) — refusing to overwrite`);
     }
-    blocks[index].output = read(outFile);
+    blocks[index].output = readInput(outFile);
     fs.writeFileSync(a, assemble(preamble, blocks, eolOf(text)), 'utf8');
     process.stdout.write(`set block ${index} of ${blocks.length}\n`);
     return;
