@@ -29,7 +29,17 @@ const fs = require('fs');
 //   matchQuestionBody   -> first `<!--` anywhere, NOT line-anchored
 const HEADER_LINE = /^#\s+(?:\d+\s+)?(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s*\r?$/;
 const COMMENT_OPEN = '<!--';
+const COMMENT = /<!--[\s\S]*?-->/g;
 const ANSWER_MARKER = /optimized/;
+
+/**
+ * True when the tail carries an answer marker, i.e. an HTML *comment* containing `optimized`.
+ * Mirrors mdFileUtils.matchTargetCommentBlock: the keyword is matched against the comment only —
+ * a fenced code block that merely mentions the word must NOT count as an answer.
+ */
+function hasAnswerMarker(questionMetaData) {
+  return (questionMetaData.match(COMMENT) || []).some((comment) => ANSWER_MARKER.test(comment));
+}
 
 /** Read UTF-8 and drop a leading BOM (PowerShell's `Out-File -Encoding utf8` emits one). */
 function read(file) {
@@ -77,7 +87,7 @@ function parse(text) {
       questionBody: rest.slice(0, cut),
       questionMetaData,
       output: '',
-      skip: ANSWER_MARKER.test(questionMetaData),
+      skip: hasAnswerMarker(questionMetaData),
     };
   });
 

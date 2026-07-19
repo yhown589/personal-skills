@@ -137,10 +137,10 @@ For each block, in index order:
 1. If the skip rule applies (Section 1.6.3), write nothing for that block and move on.
 2. Otherwise treat the block's `questionBody` — taken as a whole, exactly as given — as the question. Do not pick out a single "question line" or filter anything out, and do not consult `questionMetaData` for content.
 3. Apply the core task (Section 1.3) and produce the per-question output exactly as defined in Section 1.4 — the `<!-- optimized-score=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
-4. Write that text to a temporary file, then run:
+4. Write that text **beside the working copy**, at the working copy's own path with `.md` replaced by `.output.txt` — e.g. `2026-07-06_Fable 5.md` becomes `2026-07-06_Fable 5.output.txt`. If that file already exists, overwrite it; the same path is reused for every block, so at most one such file exists per working copy. (The `.txt` extension keeps it out of Folder Mode's `.md` selection.) Then run:
 
    ```
-   node "../scripts/blocks.js" set "<working copy path>" <blockIndex> "<temp output path>"
+   node "../scripts/blocks.js" set "<working copy path>" <blockIndex> "<output txt path>"
    ```
 
    The script inserts it after the block's last fenced code block, separated by exactly one blank line, and leaves every other byte of the file untouched. It refuses to overwrite an already-answered block.

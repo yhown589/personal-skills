@@ -39,7 +39,7 @@ For every question (the text to rewrite), provide rewritten versions across the 
 
 **Line preservation**: Each rewritten version must have exactly the same number of lines as the input text, with a one-to-one correspondence — line N of the output rewrites line N of the input. Never add, remove, merge, or split lines; keep blank lines in place. If the input is a single line, each version must be a single line.
 
-**Non-English lines**: only rewrite lines containing English text; lines with no English text (e.g. lines consisting only of Chinese characters, code fences, or punctuation) are kept as-is, unchanged, in all three versions.
+**Non-English lines**: only rewrite lines containing English text; lines with no English text (e.g. lines consisting only of Chinese characters, code fences, or punctuation) are kept as-is, unchanged, in all four versions.
 
 **Edge trimming**: leading and trailing blank lines of the input text are trimmed before processing and do not participate in the line correspondence.
 
@@ -121,7 +121,7 @@ Block indices are stable across runs, so block `i` always refers to the same blo
 
 ### 1.6.2 Rewriting & output rules
 
-Save the parsed JSON to a temporary file — that file is the working array. Iterate it **in order, one element at a time**, and fill in `output`:
+Save the parsed JSON **beside the working copy**, at the working copy's own path with `.md` replaced by `.blocks.json` — e.g. `2026-07-06_Fable 5.md` becomes `2026-07-06_Fable 5.blocks.json`. If that file already exists, overwrite it. (The `.json` extension keeps it out of Folder Mode's `.md` selection.) That file is the working array. Iterate it **in order, one element at a time**, and fill in `output`:
 
 1. If `skip` is `true`, leave `output` as `""` (Section 1.6.3).
 2. Otherwise treat the element's `questionBody` — taken as a whole, exactly as given — as the text to rewrite. Do not pick out a single "question line" or filter anything out, and do not consult `questionMetaData` for content.
@@ -135,10 +135,10 @@ A block whose `questionMetaData` already contains an HTML comment with the strin
 
 ### 1.6.4 Write back & completion report
 
-Save the completed array over the temporary JSON file, then run:
+Save the completed array over that same `.blocks.json` file, then run:
 
 ```
-node "../scripts/blocks.js" write "<working copy path>" "<temp json path>"
+node "../scripts/blocks.js" write "<working copy path>" "<blocks json path>"
 ```
 
 The script rebuilds the file as `header + questionBody + questionMetaData + output` for each block in sequence. Because `output` follows `questionMetaData`, it lands after the block's last fenced code block automatically, separated by exactly one blank line, with the block's original trailing spacing preserved.
