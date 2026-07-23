@@ -92,9 +92,9 @@ Output nothing else per question: no intro or closing remarks, no headings, no e
 
 ## 1.6 File Mode
 
-**Source and output file — do this first.** The file at `{{INPUT}}` is the **source**. If its file name (before the extension) already ends with an underscore followed by an AI model name, `{{INPUT}}` is its own output file: pass the same path as both the `<source>` and `<output file>` arguments of every script command below, and it is completed in place. Otherwise the **output file** lives in the same directory, named by appending the current model's name to the file name before the extension, separated by an underscore — e.g. if the current model is `Fable 5`, `2026-07-06.md` becomes `2026-07-06_Fable 5.md`.
+**Source and output file — do this first.** The file at `{{INPUT}}` is the **source**. A valid source file name contains no underscore (`_`): an underscore marks a generated output file (`<name>_<model>.md`) or another derived file, and the script itself refuses such a source. If the file name of `{{INPUT}}` contains `_`, report in one line that the file is skipped and stop. Otherwise the **output file** lives in the same directory, named by appending the current model's name to the file name before the extension, separated by an underscore — e.g. if the current model is `Fable 5`, `2026-07-06.md` becomes `2026-07-06_Fable 5.md`.
 
-Do NOT create or copy the output file yourself: the script creates it on the first `emit` — seeded with any source content that precedes the first heading — and builds it up one block per `emit`, so it grows into a complete mirror of the source with answers inserted. The source file is never modified (except when it is its own output file, as above).
+Do NOT create or copy the output file yourself: the script creates it on the first `emit` — seeded with any source content that precedes the first heading — and builds it up one block per `emit`, so it grows into a complete mirror of the source with answers inserted. The source file is never modified.
 
 **Temporary files — `TEMP_FILE = false`.** While `TEMP_FILE` is `false`, this skill must **not** create any temporary file: pipe the payload to the script on **stdin** and pass `-` in place of the answer path. If it is ever set to `true`, write the payload beside the output file instead — `<output file>.output.txt`, overwriting any existing file — and pass that path in place of `-`.
 
@@ -236,9 +236,7 @@ When `{{INPUT}}` is an existing directory, run **Folder Mode**: apply the entire
 ### 1.7.1 File selection
 
 1. Consider only files located **directly inside** `{{INPUT}}` (top level only — do not descend into subfolders) whose name ends in `.md`.
-2. A file whose base name (before the extension) ends with an underscore followed by an **AI model name** (e.g. `_Fable 5`, `_GPT-5.6 Sol`, `_Opus 4.8`) is an **output file** — whether produced by the current model or by a different model in a previous run. Never treat an output file as the source of a further output file.
-   - If its **source file** (the same base name with that `_<model>` suffix removed) is also present in the directory, skip the output file in selection; it is handled while processing its source.
-   - Otherwise, process it **in place** as its own source: pass its path as both the `<source>` and `<output file>` script arguments, per Section 1.6.
+2. A file whose name contains an underscore (`_`) is never a source — **always skip it in selection**. This covers output files (e.g. `_Fable 5`, `_GPT-5.6 Sol`, `_Opus 4.8`, whether produced by the current model or by a different model in a previous run) and any other `_`-named file. An output file is handled while processing its source; when its source file is absent from the directory, it is simply left untouched. The script enforces this too: `pending` reports nothing to do for an underscored source.
 3. Process the selected files one by one in ascending order by file name.
 4. **No-op rule**: if the directory contains no qualifying file, do not create or write anything; just output the completion report (Section 1.7.3).
 

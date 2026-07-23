@@ -1,6 +1,6 @@
 ---
 name: chinese-english-translator
-description: Translate Chinese text into four English versions (Direct, Spoken, Written, Concise). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
+description: Translate Chinese text into five English versions (Direct, Spoken, Written, Concise, Native). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
 disable-model-invocation: true
 ---
 
@@ -28,24 +28,25 @@ Store the user's input in a variable: `{{INPUT}}` = $ARGUMENTS
 
 ## 1.3 Core task (per question)
 
-For every question (the text to translate), provide English renderings across the following four distinct registers, in this order:
+For every question (the text to translate), provide English renderings across the following five distinct registers, in this order:
 
-1. **Direct**: The literal rendering — follow the source wording and sentence structure as closely as English grammar allows. This is the baseline the other three depart from.
+1. **Direct**: The literal rendering — follow the source wording and sentence structure as closely as English grammar allows. This is the baseline the others depart from.
 2. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
 3. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
 4. **Concise**: The shortest clear rendering that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
+5. **Native**: How a native speaker would naturally convey the same meaning — free to abandon the source wording, structure, and framing entirely: use idioms, change the sentence subject, reorder the information, say it the way it would actually be said. This version answers "what would a native say here?", not "how do I translate this sentence?".
 
-**Maximize contrast (avoid homogenization)**: the four versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Spoken, Written, and Concise must each visibly depart from it and from each other. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all four are clearly distinct. The meaning must stay the same; the surface form must not.
+**Maximize contrast (avoid homogenization)**: the five versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Spoken, Written, Concise, and Native must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all five are clearly distinct. The meaning must stay the same; the surface form must not.
 
 **Line preservation**: Each translated version must have exactly the same number of lines as the input text, with a one-to-one correspondence — line N of the output translates line N of the input. Never add, remove, merge, or split lines; keep blank lines in place. If the input is a single line, each version must be a single line.
 
-**Non-Chinese lines**: only translate lines containing Chinese text; lines with no Chinese characters (e.g. pure English, code, punctuation-only) are kept as-is, unchanged, in all four versions.
+**Non-Chinese lines**: only translate lines containing Chinese text; lines with no Chinese characters (e.g. pure English, code, punctuation-only) are kept as-is, unchanged, in all five versions.
 
 **Edge trimming**: leading and trailing blank lines of the input text are trimmed before processing and do not participate in the line correspondence.
 
 ## 1.4 Per-question output format
 
-For each question, the output is four **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
+For each question, the output is five **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
 
 ````
 <!-- optimized-type=direct -->
@@ -67,6 +68,11 @@ For each question, the output is four **answer units**, one per register, in the
 ```
 [Concise version]
 ```
+
+<!-- optimized-type=native -->
+```
+[Native version]
+```
 ````
 
 Output nothing else per question: no intro or closing remarks, no headings, no explanations.
@@ -79,9 +85,9 @@ Output nothing else per question: no intro or closing remarks, no headings, no e
 
 ## 1.6 File Mode
 
-**Source and output file — do this first.** The file at `{{INPUT}}` is the **source**. If its file name (before the extension) already ends with an underscore followed by an AI model name, `{{INPUT}}` is its own output file: pass the same path as both the `<source>` and `<output file>` arguments of every script command below, and it is completed in place. Otherwise the **output file** lives in the same directory, named by appending the current model's name to the file name before the extension, separated by an underscore — e.g. if the current model is `Fable 5`, `2026-07-06.md` becomes `2026-07-06_Fable 5.md`.
+**Source and output file — do this first.** The file at `{{INPUT}}` is the **source**. A valid source file name contains no underscore (`_`): an underscore marks a generated output file (`<name>_<model>.md`) or another derived file, and the script itself refuses such a source. If the file name of `{{INPUT}}` contains `_`, report in one line that the file is skipped and stop. Otherwise the **output file** lives in the same directory, named by appending the current model's name to the file name before the extension, separated by an underscore — e.g. if the current model is `Fable 5`, `2026-07-06.md` becomes `2026-07-06_Fable 5.md`.
 
-Do NOT create or copy the output file yourself: the script creates it on the first `emit` — seeded with any source content that precedes the first heading — and builds it up one block per `emit`, so it grows into a complete mirror of the source with translations inserted. The source file is never modified (except when it is its own output file, as above).
+Do NOT create or copy the output file yourself: the script creates it on the first `emit` — seeded with any source content that precedes the first heading — and builds it up one block per `emit`, so it grows into a complete mirror of the source with translations inserted. The source file is never modified.
 
 **Temporary files — `TEMP_FILE = false`.** While `TEMP_FILE` is `false`, this skill must **not** create any temporary file: pipe the payload to the script on **stdin** and pass `-` in place of the translation path. If it is ever set to `true`, write the payload beside the output file instead — `<output file>.output.txt`, overwriting any existing file — and pass that path in place of `-`.
 
@@ -122,7 +128,7 @@ For each pending block:
    ```
 
 2. Otherwise treat the block's `questionBody` — taken as a whole, exactly as given — as the text to translate. Do not pick out a single "question line" or filter anything out.
-3. Apply the core task (Section 1.3) and produce the four answer units exactly as defined in Section 1.4: the `<!-- optimized-type=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
+3. Apply the core task (Section 1.3) and produce the five answer units exactly as defined in Section 1.4: the `<!-- optimized-type=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
 4. Pipe that text to the script on **stdin** — `-` stands in for the translation path, so no file is created:
 
    ```
@@ -180,6 +186,11 @@ This is an example of content that has previously been translated.
 ```
 Previously translated content.
 ```
+
+<!-- optimized-type=native -->
+```
+This one's already been translated.
+```
 ````
 
 #### 1.6.5.2 Output file content after processing
@@ -210,6 +221,11 @@ Which programming language is associated with the .astro file extension?
 .astro files — what language?
 ```
 
+<!-- optimized-type=native -->
+```
+What do you write .astro files in?
+```
+
 # 2 2026-07-14 10:25:10.456
 如何在终端查看当前目录
 <!-- my earlier draft -->
@@ -237,6 +253,11 @@ How can the current working directory be displayed within a terminal session?
 Show current directory in terminal?
 ```
 
+<!-- optimized-type=native -->
+```
+What's the command to see where I am?
+```
+
 # 3 2026-07-14 10:30:02.789
 已翻译过的示例内容
 
@@ -259,6 +280,11 @@ This is an example of content that has previously been translated.
 ```
 Previously translated content.
 ```
+
+<!-- optimized-type=native -->
+```
+This one's already been translated.
+```
 ````
 
 Completion report for this example: `Translated 2 question block(s), skipped 1 already-translated block(s).`
@@ -270,9 +296,7 @@ When `{{INPUT}}` is an existing directory, run **Folder Mode**: apply the entire
 ### 1.7.1 File selection
 
 1. Consider only files located **directly inside** `{{INPUT}}` (top level only — do not descend into subfolders) whose name ends in `.md`.
-2. A file whose base name (before the extension) ends with an underscore followed by an **AI model name** (e.g. `_Fable 5`, `_GPT-5.6 Sol`, `_Opus 4.8`) is an **output file** — whether produced by the current model or by a different model in a previous run. Never treat an output file as the source of a further output file.
-   - If its **source file** (the same base name with that `_<model>` suffix removed) is also present in the directory, skip the output file in selection; it is handled while processing its source.
-   - Otherwise, process it **in place** as its own source: pass its path as both the `<source>` and `<output file>` script arguments, per Section 1.6.
+2. A file whose name contains an underscore (`_`) is never a source — **always skip it in selection**. This covers output files (e.g. `_Fable 5`, `_GPT-5.6 Sol`, `_Opus 4.8`, whether produced by the current model or by a different model in a previous run) and any other `_`-named file. An output file is handled while processing its source; when its source file is absent from the directory, it is simply left untouched. The script enforces this too: `pending` reports nothing to do for an underscored source.
 3. Process the selected files one by one in ascending order by file name.
 4. **No-op rule**: if the directory contains no qualifying file, do not create or write anything; just output the completion report (Section 1.7.3).
 

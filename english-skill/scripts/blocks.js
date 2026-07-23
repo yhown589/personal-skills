@@ -40,6 +40,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 
 // Segmentation rules (fixed; every skill and every run must agree on them):
 //   HEADER_LINE  -> a `# [index or title] YYYY-MM-DD HH:mm:ss.SSS` heading starts a block
@@ -141,6 +142,23 @@ function assemble(preamble, blocks, eol) {
   }
 
   return out;
+}
+
+/**
+ * A valid SOURCE file has no underscore anywhere in its file name: `_` marks generated
+ * output files (`<name>_<model>.md`) and other derived files, which must never be used as
+ * a source. `pending` reports such a file as having nothing to do; `emit` refuses it.
+ */
+function isValidSource(file) {
+  return !path.basename(file).includes('_');
+}
+
+function assertValidSource(file) {
+  if (!isValidSource(file)) {
+    throw new Error(
+      `"${path.basename(file)}" is not a valid source file (name contains "_") — skip it`
+    );
+  }
 }
 
 function headerKey(block) {
@@ -277,6 +295,14 @@ function main() {
 
   if (cmd === 'pending') {
     if (!a || !b) throw new Error('usage: blocks.js pending <source> <outfile>');
+    if (!isValidSource(a)) {
+      // Not a valid source (see isValidSource) -> nothing to do for this file.
+      process.stderr.write(
+        `skipped: "${path.basename(a)}" is not a valid source file (name contains "_")\n`
+      );
+      process.stdout.write('[]\n');
+      return;
+    }
     const outText = fs.existsSync(b) ? read(b) : '';
     process.stdout.write(JSON.stringify(pendingBlocks(read(a), outText), null, 2) + '\n');
     return;
@@ -288,6 +314,7 @@ function main() {
       throw new Error('usage: blocks.js emit <source> <outfile> <blockIndex> [answerFile|-]');
     }
     const index = Number(process.argv[5]);
+    assertValidSource(a);
     const sourceText = read(a);
     const { preamble, blocks } = parse(sourceText);
     if (!Number.isInteger(index) || index < 0 || index >= blocks.length) {
