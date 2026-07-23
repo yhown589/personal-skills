@@ -16,6 +16,10 @@
  * `write`, `set`, and `emit` accept `-` in place of the input path to read that payload from
  * stdin, so a caller that must not create temporary files can pipe it instead.
  *
+ * An `emit` answer may use `@@score=<band>` marker lines (see expandScoreMarkers): the script
+ * then builds the `<!-- optimized-score=... -->` markers and ``` fences itself, so the piped
+ * payload contains no backticks and survives any shell's quoting rules.
+ *
  * `write` is the batch path (fill every block, then one whole-file write).
  * `set` is the incremental path that fills blocks inside one self-contained file: it rewrites the
  * file after each block, so the work is resumable — a block already set re-parses as skip: true.
@@ -142,6 +146,49 @@ function assemble(preamble, blocks, eol) {
   }
 
   return out;
+}
+
+// A payload line `@@score=<band>` starts one answer unit; the lines until the next marker are
+// that unit's essay text.
+const SCORE_MARKER_LINE = /^@@score=([0-9.]+)\s*$/;
+
+/**
+ * Expand an `@@score`-marked answer payload into the on-file answer format:
+ * each unit becomes `<!-- optimized-score=<band> -->` followed by a ``` fenced code block
+ * holding the essay. Payloads without any marker line pass through unchanged, so callers
+ * that already send the literal on-file format keep working.
+ *
+ * The point of the marker format is that the payload contains no backticks (and no HTML
+ * comments), so it cannot be mangled by shell quoting on its way through stdin.
+ */
+function expandScoreMarkers(answer, eol) {
+  const lines = answer.split(/\r?\n/);
+  if (!lines.some((line) => SCORE_MARKER_LINE.test(line))) return answer;
+
+  const units = [];
+  let current = null;
+  for (const line of lines) {
+    const m = line.match(SCORE_MARKER_LINE);
+    if (m) {
+      current = { score: m[1], lines: [] };
+      units.push(current);
+    } else if (current) {
+      current.lines.push(line);
+    } else if (line.trim()) {
+      throw new Error('answer payload has content before the first @@score marker');
+    }
+  }
+
+  return units
+    .map((unit) => {
+      const essay = unit.lines.join(eol).replace(/^\s+|\s+$/g, '');
+      if (!essay) throw new Error(`@@score=${unit.score} unit has no essay text`);
+      if (essay.includes('```')) {
+        throw new Error(`@@score=${unit.score} essay contains a \`\`\` fence — send plain text only`);
+      }
+      return `<!-- optimized-score=${unit.score} -->${eol}\`\`\`${eol}${essay}${eol}\`\`\``;
+    })
+    .join(eol + eol);
 }
 
 /**
@@ -335,6 +382,7 @@ function main() {
     const seeded = outText || preamble;
     const out = parse(seeded);
     const eol = eolOf(outText || sourceText);
+    const output = answer ? expandScoreMarkers(answer, eol) : '';
 
     const match = matchInOut(blocks, index, groupByHeader(out.blocks));
     if (match) {
@@ -349,14 +397,14 @@ function main() {
         process.stdout.write(`block ${index} already present in output file\n`);
         return;
       }
-      match.output = answer;
+      match.output = output;
       fs.writeFileSync(b, assemble(out.preamble, out.blocks, eol), 'utf8');
       process.stdout.write(`filled block ${index} in place (${blocks.length} block(s) in source)\n`);
       return;
     }
 
     const raw = (block.header + block.questionBody + block.questionMetaData).replace(/(?:\r?\n)*$/, '');
-    const chunk = answer ? raw + eol + eol + answer : raw;
+    const chunk = answer ? raw + eol + eol + output : raw;
     const base = seeded.replace(/(?:\r?\n)*$/, '');
     fs.writeFileSync(b, (base ? base + eol + eol : '') + chunk + eol, 'utf8');
     process.stdout.write(

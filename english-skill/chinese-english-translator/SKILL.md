@@ -1,6 +1,6 @@
 ---
 name: chinese-english-translator
-description: Translate Chinese text into five English versions (Direct, Spoken, Written, Concise, Native). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
+description: Translate Chinese text into five English versions (Direct, Native, Spoken, Written, Concise). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
 disable-model-invocation: true
 ---
 
@@ -31,12 +31,12 @@ Store the user's input in a variable: `{{INPUT}}` = $ARGUMENTS
 For every question (the text to translate), provide English renderings across the following five distinct registers, in this order:
 
 1. **Direct**: The literal rendering — follow the source wording and sentence structure as closely as English grammar allows. This is the baseline the others depart from.
-2. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
-3. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
-4. **Concise**: The shortest clear rendering that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
-5. **Native**: How a native speaker would naturally convey the same meaning — free to abandon the source wording, structure, and framing entirely: use idioms, change the sentence subject, reorder the information, say it the way it would actually be said. This version answers "what would a native say here?", not "how do I translate this sentence?".
+2. **Native**: How a native speaker would naturally convey the same meaning — free to abandon the source wording, structure, and framing entirely: use idioms, change the sentence subject, reorder the information, say it the way it would actually be said. This version answers "what would a native say here?", not "how do I translate this sentence?".
+3. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
+4. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
+5. **Concise**: The shortest clear rendering that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
 
-**Maximize contrast (avoid homogenization)**: the five versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Spoken, Written, Concise, and Native must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all five are clearly distinct. The meaning must stay the same; the surface form must not.
+**Maximize contrast (avoid homogenization)**: the five versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Native, Spoken, Written, and Concise must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all five are clearly distinct. The meaning must stay the same; the surface form must not.
 
 **Line preservation**: Each translated version must have exactly the same number of lines as the input text, with a one-to-one correspondence — line N of the output translates line N of the input. Never add, remove, merge, or split lines; keep blank lines in place. If the input is a single line, each version must be a single line.
 
@@ -54,6 +54,11 @@ For each question, the output is five **answer units**, one per register, in the
 [Direct version]
 ```
 
+<!-- optimized-type=native -->
+```
+[Native version]
+```
+
 <!-- optimized-type=spoken -->
 ```
 [Spoken version]
@@ -67,11 +72,6 @@ For each question, the output is five **answer units**, one per register, in the
 <!-- optimized-type=concise -->
 ```
 [Concise version]
-```
-
-<!-- optimized-type=native -->
-```
-[Native version]
 ```
 ````
 
@@ -172,6 +172,11 @@ my earlier draft translation
 Already translated example content.
 ```
 
+<!-- optimized-type=native -->
+```
+This one's already been translated.
+```
+
 <!-- optimized-type=spoken -->
 ```
 Here's some content that's already been translated.
@@ -186,11 +191,6 @@ This is an example of content that has previously been translated.
 ```
 Previously translated content.
 ```
-
-<!-- optimized-type=native -->
-```
-This one's already been translated.
-```
 ````
 
 #### 1.6.5.2 Output file content after processing
@@ -204,6 +204,11 @@ Block 1 is translated directly below its question content, block 2 is translated
 <!-- optimized-type=direct -->
 ```
 What programming language is a file with the .astro suffix?
+```
+
+<!-- optimized-type=native -->
+```
+What do you write .astro files in?
 ```
 
 <!-- optimized-type=spoken -->
@@ -221,11 +226,6 @@ Which programming language is associated with the .astro file extension?
 .astro files — what language?
 ```
 
-<!-- optimized-type=native -->
-```
-What do you write .astro files in?
-```
-
 # 2 2026-07-14 10:25:10.456
 如何在终端查看当前目录
 <!-- my earlier draft -->
@@ -236,6 +236,11 @@ my earlier draft translation
 <!-- optimized-type=direct -->
 ```
 How to view the current directory in the terminal
+```
+
+<!-- optimized-type=native -->
+```
+What's the command to see where I am?
 ```
 
 <!-- optimized-type=spoken -->
@@ -253,17 +258,17 @@ How can the current working directory be displayed within a terminal session?
 Show current directory in terminal?
 ```
 
-<!-- optimized-type=native -->
-```
-What's the command to see where I am?
-```
-
 # 3 2026-07-14 10:30:02.789
 已翻译过的示例内容
 
 <!-- optimized-type=direct -->
 ```
 Already translated example content.
+```
+
+<!-- optimized-type=native -->
+```
+This one's already been translated.
 ```
 
 <!-- optimized-type=spoken -->
@@ -279,11 +284,6 @@ This is an example of content that has previously been translated.
 <!-- optimized-type=concise -->
 ```
 Previously translated content.
-```
-
-<!-- optimized-type=native -->
-```
-This one's already been translated.
 ```
 ````
 

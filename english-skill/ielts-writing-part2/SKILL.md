@@ -136,8 +136,8 @@ For each pending block:
    ```
 
 2. Otherwise treat the block's `questionBody` — taken as a whole, exactly as given — as the question. Do not pick out a single "question line" or filter anything out.
-3. Apply the core task (Section 1.3) and produce the per-question output exactly as defined in Section 1.4 — the `<!-- optimized-score=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
-4. Pipe that text to the script on **stdin** — `-` stands in for the answer path, so no file is created:
+3. Apply the core task (Section 1.3) and build the block's **answer payload** in ascending band order: for each of the twelve essays, one marker line `@@score=<band>` (e.g. `@@score=6.0`), then that essay's text (paragraph rules of Section 1.4: one blank line between paragraphs, no line breaks within a paragraph), then one blank line before the next marker. The payload contains **no HTML comments, no code fences, and no backticks anywhere** — the script expands each `@@score` unit into the `<!-- optimized-score=... -->` marker plus fenced code block of Section 1.4, so the on-file result is identical. (The literal Section 1.4 format is for Text Mode chat output only — never pipe it.)
+4. Pipe that payload to the script on **stdin** — `-` stands in for the answer path, so no file is created:
 
    ```
    node "../scripts/blocks.js" emit "<source path>" "<output file path>" <index> -
