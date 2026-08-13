@@ -1,6 +1,6 @@
 ---
 name: chinese-english-translator
-description: Translate Chinese text into five English versions (Direct, Native, Spoken, Written, Concise). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
+description: Translate Chinese text into six English versions (Direct, Native, Spoken, Meeting, Written, Concise). Input is a Chinese text (translate in chat), a file path (segment the file into question blocks by timestamp headings and insert translations into the file), or a folder path (run the file task on each .md file in the folder). MANUAL TRIGGER ONLY — never activate this skill automatically; use it only when the user explicitly invokes it by name.
 disable-model-invocation: true
 ---
 
@@ -28,25 +28,28 @@ Store the user's input in a variable: `{{INPUT}}` = $ARGUMENTS
 
 ## 1.3 Core task (per question)
 
-For every question (the text to translate), provide English renderings across the following five distinct registers, in this order:
+For every question (the text to translate), provide English renderings across the following six distinct registers, in this order:
 
 1. **Direct**: The literal rendering — follow the source wording and sentence structure as closely as English grammar allows. This is the baseline the others depart from.
 2. **Native**: How a native speaker would naturally convey the same meaning — free to abandon the source wording, structure, and framing entirely: use idioms, change the sentence subject, reorder the information, say it the way it would actually be said. This version answers "what would a native say here?", not "how do I translate this sentence?".
 3. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
-4. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
-5. **Concise**: The shortest clear rendering that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
+4. **Meeting**: How it would be said out loud in a work meeting — spoken, but with professional composure. It is addressed to listeners rather than readers: it may ask, invite a response, or open with a turn-taking marker ("Quick question —", "Just to check", "Coming back to that"). Positions are hedged and softened ("I'd suggest we…", "My concern is…", "I'm not sure we…") rather than asserted flatly. Vocabulary is neutral-to-professional: contractions yes, slang no.
+5. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
+6. **Concise**: The shortest clear rendering that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
 
-**Maximize contrast (avoid homogenization)**: the five versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Native, Spoken, Written, and Concise must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all five are clearly distinct. The meaning must stay the same; the surface form must not.
+**Meeting vs. its neighbours**: Meeting sits between Spoken and Written and is the version most at risk of collapsing into one of them. Two hard requirements keep it distinct: it **must** use spoken contractions (I'd, we're, don't — this is what separates it from Written), and it **must** carry at least one listener-facing element — a question, an invitation to respond, or a turn-taking marker (this is what separates it from both). Unlike Spoken it never uses slang or blunt refusal. Meeting is also allowed to be the longest of the six: hedging and turn-taking cost words, and that length is expected, not a fault to trim.
+
+**Maximize contrast (avoid homogenization)**: the six versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the source structure; Native, Spoken, Meeting, Written, and Concise must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, redo at least one until all six are clearly distinct. The meaning must stay the same; the surface form must not.
 
 **Line preservation**: Each translated version must have exactly the same number of lines as the input text, with a one-to-one correspondence — line N of the output translates line N of the input. Never add, remove, merge, or split lines; keep blank lines in place. If the input is a single line, each version must be a single line.
 
-**Non-Chinese lines**: only translate lines containing Chinese text; lines with no Chinese characters (e.g. pure English, code, punctuation-only) are kept as-is, unchanged, in all five versions.
+**Non-Chinese lines**: only translate lines containing Chinese text; lines with no Chinese characters (e.g. pure English, code, punctuation-only) are kept as-is, unchanged, in all six versions.
 
 **Edge trimming**: leading and trailing blank lines of the input text are trimmed before processing and do not participate in the line correspondence.
 
 ## 1.4 Per-question output format
 
-For each question, the output is five **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
+For each question, the output is six **answer units**, one per register, in the order above. Each answer unit is a `<!-- optimized-type=... -->` marker line followed by a fenced code block containing that version:
 
 ````
 <!-- optimized-type=direct -->
@@ -62,6 +65,11 @@ For each question, the output is five **answer units**, one per register, in the
 <!-- optimized-type=spoken -->
 ```
 [Spoken version]
+```
+
+<!-- optimized-type=meeting -->
+```
+[Meeting version]
 ```
 
 <!-- optimized-type=written -->
@@ -128,7 +136,7 @@ For each pending block:
    ```
 
 2. Otherwise treat the block's `questionBody` — taken as a whole, exactly as given — as the text to translate. Do not pick out a single "question line" or filter anything out.
-3. Apply the core task (Section 1.3) and produce the five answer units exactly as defined in Section 1.4: the `<!-- optimized-type=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
+3. Apply the core task (Section 1.3) and produce the six answer units exactly as defined in Section 1.4: the `<!-- optimized-type=... -->` markers and their fenced code blocks as-is, one blank line between units, with NO extra outer code block (the outer wrap is Text Mode only) and no trailing blank line.
 4. Pipe that text to the script on **stdin** — `-` stands in for the translation path, so no file is created:
 
    ```
@@ -182,6 +190,11 @@ This one's already been translated.
 Here's some content that's already been translated.
 ```
 
+<!-- optimized-type=meeting -->
+```
+Just to flag it — this content has already been translated, so I'd suggest we leave it as is.
+```
+
 <!-- optimized-type=written -->
 ```
 This is an example of content that has previously been translated.
@@ -216,6 +229,11 @@ What do you write .astro files in?
 So what language do you actually write .astro files in?
 ```
 
+<!-- optimized-type=meeting -->
+```
+Quick question — do we know what language .astro files are actually written in?
+```
+
 <!-- optimized-type=written -->
 ```
 Which programming language is associated with the .astro file extension?
@@ -248,6 +266,11 @@ What's the command to see where I am?
 How do I see what folder I'm in from the terminal?
 ```
 
+<!-- optimized-type=meeting -->
+```
+Just to check — what's the command for showing the current directory in the terminal?
+```
+
 <!-- optimized-type=written -->
 ```
 How can the current working directory be displayed within a terminal session?
@@ -274,6 +297,11 @@ This one's already been translated.
 <!-- optimized-type=spoken -->
 ```
 Here's some content that's already been translated.
+```
+
+<!-- optimized-type=meeting -->
+```
+Just to flag it — this content has already been translated, so I'd suggest we leave it as is.
 ```
 
 <!-- optimized-type=written -->
