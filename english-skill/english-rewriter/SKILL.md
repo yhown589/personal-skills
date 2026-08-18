@@ -33,11 +33,11 @@ For every question (the text to rewrite), provide rewritten versions across the 
 1. **Direct**: The minimal-change correction — stay as close to the original wording and sentence structure as possible, fixing only grammar, word form, and errors. This is the baseline the others depart from.
 2. **Native**: How a native speaker would naturally express the same idea — free to abandon the original wording, structure, and framing entirely: use idioms, change the sentence subject, reorder the information, say it the way it would actually be said. This version answers "what would a native write here?", not "how do I fix this sentence?".
 3. **Spoken**: How a fluent speaker would actually say it out loud in conversation — contractions, everyday vocabulary, relaxed and natural rhythm.
-4. **Meeting**: How it would be said out loud in a work meeting — spoken, but with professional composure. It is addressed to listeners rather than readers: it may ask, invite a response, or open with a turn-taking marker ("Quick question —", "Just to check", "Coming back to that"). Positions are hedged and softened ("I'd suggest we…", "My concern is…", "I'm not sure we…") rather than asserted flatly. Vocabulary is neutral-to-professional: contractions yes, slang no.
+4. **Meeting**: How it would be delivered as a prepared status update in a work meeting — spoken aloud, but composed in advance rather than improvised mid-discussion. It reports: lead with the outcome, then state what stands, in what scope, and what remains. Claims are asserted flatly and owned ("The main development work is done", "Two items remain") — no hedging, no softeners, no turn-taking markers, no inviting a response. Strip filler, but keep the framing that tells a listener where a fact belongs ("from X through to Y", "the current status is…"). Vocabulary is neutral-to-professional — no slang — and it is spoken, so contract wherever a speaker naturally would ("I've", "we're", "that's") and never expand a form just to sound more formal. State numbers, scope boundaries, and names precisely, since a listener cannot re-read them.
 5. **Written**: How it would appear in a polished document, email, or essay — complete sentences, precise grammar, formal vocabulary.
 6. **Concise**: The shortest clear version that still keeps the full meaning — strip redundancy and filler, tighten to the essentials.
 
-**Meeting vs. its neighbours**: Meeting sits between Spoken and Written and is the version most at risk of collapsing into one of them. Two hard requirements keep it distinct: it **must** use spoken contractions (I'd, we're, don't — this is what separates it from Written), and it **must** carry at least one listener-facing element — a question, an invitation to respond, or a turn-taking marker (this is what separates it from both). Unlike Spoken it never uses slang or blunt refusal. Meeting is also allowed to be the longest of the six: hedging and turn-taking cost words, and that length is expected, not a fault to trim.
+**Meeting vs. its neighbours**: Meeting sits between Spoken and Written and is the version most at risk of collapsing into one of them. Two hard requirements keep it distinct: it **must** be organized as a report, leading with the outcome and separating what is settled from what is outstanding, rather than following the original's order (this is what separates it from Spoken); and it **must** assert flatly — no hedge, no question, no turn-taking marker. What separates it from Written is delivery: Written expands every form, Meeting keeps the contractions a speaker would actually use. This is a default, not a quota — if a sentence offers no natural place to contract ("Two items remain."), leave it alone rather than reworking the sentence to manufacture one. Unlike Spoken it never uses slang. Unlike Concise it keeps the scope-framing phrases that orient a listener, so it may run longer than the original — that length is expected, not a fault to trim. Where the input is itself a question, Meeting reports it as an open item in the speaker's own voice instead of asking it conversationally.
 
 **Maximize contrast (avoid homogenization)**: the six versions must be genuinely different from one another, not minor word swaps of the same sentence. Direct is the only one that hugs the original; Native, Spoken, Meeting, Written, and Concise must each visibly depart from it and from each other — Native most of all. Deliberately vary sentence structure, word choice, and length — reorder or reword clauses, change voice or phrasing, and let each register commit fully to its own style. If two versions come out nearly identical, rewrite at least one until all six are clearly distinct. The meaning must stay the same; the surface form must not.
 
@@ -192,7 +192,7 @@ Here's a sentence someone already redid.
 
 <!-- optimized-type=meeting -->
 ```
-Just to flag it — this sentence has already been reworked, so I'd suggest we leave it as is.
+This sentence has already been reworked, so it doesn't need another pass.
 ```
 
 <!-- optimized-type=written -->
@@ -231,7 +231,7 @@ So what language do you actually write .astro files in?
 
 <!-- optimized-type=meeting -->
 ```
-Quick question — do we know what language .astro files are actually written in?
+One item still open: we haven't confirmed which language .astro files are actually written in.
 ```
 
 <!-- optimized-type=written -->
@@ -268,7 +268,7 @@ How do I see what folder I'm in from the terminal?
 
 <!-- optimized-type=meeting -->
 ```
-Just to check — what's the command for showing the current directory in the terminal?
+Still outstanding on my side: the command that shows the current directory in the terminal.
 ```
 
 <!-- optimized-type=written -->
@@ -301,7 +301,7 @@ Here's a sentence someone already redid.
 
 <!-- optimized-type=meeting -->
 ```
-Just to flag it — this sentence has already been reworked, so I'd suggest we leave it as is.
+This sentence has already been reworked, so it doesn't need another pass.
 ```
 
 <!-- optimized-type=written -->
