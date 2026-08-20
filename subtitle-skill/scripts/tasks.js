@@ -2,14 +2,27 @@
 'use strict';
 
 /**
- * Work-list tool for the srt-to-transcript / transcript-punctuator skills.
+ * Work-list and verification tool for the srt-to-transcript / transcript-punctuator skills.
  *
  * Commands:
- *   node tasks.js list srt        <folder>   Tasks for srt-to-transcript.
- *   node tasks.js list punctuate  <folder>   Tasks for transcript-punctuator.
- *   node tasks.js verify <prefix> [source]   Check a punctuated file against its source.
+ *   node tasks.js list   clean     <folder>   Tasks for srt-to-transcript.
+ *   node tasks.js list   punctuate <folder>   Tasks for transcript-punctuator.
+ *   node tasks.js verify clean     <prefix>   Check a cleaned file against its source.
+ *   node tasks.js verify punctuate <prefix>   Check a punctuated file against its source.
  *
  * Every command prints JSON on stdout and nothing else, so the caller parses one value.
+ *
+ * The pipeline these two skills sit in:
+ *
+ *   .original.srt   --[service: srt-to-original]-->  .original.json
+ *   .original.json  --[skill: srt-to-transcript]-->  .cleaned.json
+ *   .cleaned.json   --[skill: transcript-punctuator]-->  .punctuated.json
+ *   .punctuated.json --[service: align-media, then the rest of the chain]-->  .srt
+ *
+ * Each stage reads one suffix and writes another, so "has this stage run?" is answered by
+ * "does its output exist?" and by nothing else. That is why the model half of srt-to-transcript
+ * writes `.cleaned.json` rather than editing `.original.json` in place: sharing a name with the
+ * service's product would make the two stages indistinguishable.
  *
  * Why the selection lives here and not in the model's head: a task is identified by its
  * *path prefix*, the part before the FIRST dot — the same rule the LARS service uses, so
@@ -21,12 +34,18 @@
 const fs = require('fs');
 const path = require('path');
 
-/** Suffixes of the chain, mirrored from application.yml. Changing one here changes it nowhere else. */
+/** Suffixes of the pipeline. Changing one here changes it nowhere else. */
 const SUFFIX = {
   srt: '.original.srt',
   original: '.original.json',
+  cleaned: '.cleaned.json',
   punctuated: '.punctuated.json',
-  working: '.punctuated.json.working',
+};
+
+/** Per-stage wiring: what it reads, what it writes. The working copy is always output + `.working`. */
+const STAGE = {
+  clean: { input: SUFFIX.original, output: SUFFIX.cleaned },
+  punctuate: { input: SUFFIX.cleaned, output: SUFFIX.punctuated },
 };
 
 /**
@@ -63,54 +82,46 @@ function walk(root) {
 }
 
 const exists = (p) => fs.existsSync(p);
+const readJson = (p) => JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
 
 /**
- * Build the work list for one stage.
- *
- * `srt`:        every prefix that has a `.original.srt`. Nothing is filtered out — the model
- *               reviews the produced `.original.json` even when the service skipped it, because
- *               re-reviewing an already-clean file is a no-op and that is what makes an
- *               interrupted run resumable.
- * `punctuate`:  every prefix that has a `.original.json`, marked `skip` when `.punctuated.json`
- *               already exists. That output is the only skip condition.
+ * Build the work list for one stage: every prefix that has the stage's input,
+ * marked `skip` when the stage's output already exists.
  */
 function list(stage, folder) {
-  if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) {
+  if (!folder || !fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) {
     return { error: `not a directory: ${folder}` };
   }
 
+  const { input, output } = STAGE[stage];
   const prefixes = [...new Set(walk(folder).map(taskPrefix))].sort();
   const tasks = [];
 
   for (const prefix of prefixes) {
-    if (stage === 'srt') {
-      const srtPath = prefix + SUFFIX.srt;
-      if (!exists(srtPath)) continue;
-      tasks.push({
-        prefix,
-        name: path.basename(prefix),
-        srtPath,
-        originalPath: prefix + SUFFIX.original,
-        originalExists: exists(prefix + SUFFIX.original),
-        unsafePath: dirtyPath(srtPath),
-      });
-    } else {
-      const originalPath = prefix + SUFFIX.original;
-      if (!exists(originalPath)) continue;
-      tasks.push({
-        prefix,
-        name: path.basename(prefix),
-        originalPath,
-        punctuatedPath: prefix + SUFFIX.punctuated,
-        workingPath: prefix + SUFFIX.working,
-        skip: exists(prefix + SUFFIX.punctuated),
-        resuming: exists(prefix + SUFFIX.working),
-        unsafePath: dirtyPath(originalPath),
-      });
-    }
+    const inputPath = prefix + input;
+    if (!exists(inputPath)) continue;
+
+    tasks.push({
+      prefix,
+      name: path.basename(prefix),
+      inputPath,
+      outputPath: prefix + output,
+      workingPath: prefix + output + '.working',
+      skip: exists(prefix + output),
+      resuming: exists(prefix + output + '.working'),
+      unsafePath: dirtyPath(inputPath),
+    });
   }
 
-  return { stage, folder, taskCount: tasks.length, tasks };
+  return {
+    stage,
+    folder,
+    inputSuffix: input,
+    outputSuffix: output,
+    taskCount: tasks.length,
+    pendingCount: tasks.filter((t) => !t.skip).length,
+    tasks,
+  };
 }
 
 /** Words as the aligner effectively sees them: case-folded, stripped of everything but letters/digits. */
@@ -121,37 +132,92 @@ function words(text) {
     .filter((w) => w.length > 0);
 }
 
+/** True when `sub` appears inside `full` in order, gaps allowed. */
+function isSubsequence(sub, full) {
+  let i = 0;
+  for (const word of full) {
+    if (i < sub.length && word === sub[i]) i++;
+  }
+  return i === sub.length;
+}
+
 /**
- * Check a punctuated file against its source.
+ * Check a stage's output against its input.
  *
- * This is the machine half of the "never add or remove a word" rule. The model cannot reliably
- * re-read twenty thousand characters and notice one dropped word, and a dropped word is not a
- * cosmetic defect: the aligner still places every remaining word, so the timings of the whole
- * segment shift. Same for a changed `start`/`end`, or a changed segment count — each one
- * corrupts the alignment silently.
+ * This is the machine half of the invariants the skills declare. The model cannot reliably
+ * re-read twenty thousand characters and notice one dropped word, and the failure is invisible
+ * afterwards: the aligner still places every remaining word, so the timings of the whole segment
+ * shift with nothing to indicate why.
  *
- * Checks the working file when it exists (mid-run), otherwise the published one.
+ * The two stages have different invariants, so they are checked differently:
+ *
+ * - `clean` may delete words and may delete whole segments (both are safe — a segment is an
+ *   independent alignment window). It may not invent a word, reorder words, or touch a timestamp.
+ *   So: every kept segment is matched to its source by `start`, and its words must be a
+ *   subsequence of the source's words.
+ * - `punctuate` may change nothing but punctuation and case. So: same segment count, same
+ *   timestamps, identical word sequence, and every segment must end in a terminal mark.
+ *
+ * Checks the working copy when it exists (mid-run), otherwise the published output.
  */
-function verify(prefix, sourceOverride) {
-  const source = sourceOverride || prefix + SUFFIX.original;
-  const target = exists(prefix + SUFFIX.working) ? prefix + SUFFIX.working : prefix + SUFFIX.punctuated;
+function verify(stage, prefix) {
+  const { input, output } = STAGE[stage];
+  const sourcePath = prefix + input;
+  const targetPath = exists(prefix + output + '.working') ? prefix + output + '.working' : prefix + output;
 
-  if (!exists(source)) return { error: `source not found: ${source}` };
-  if (!exists(target)) return { error: `nothing to verify, neither working nor punctuated file exists for ${prefix}` };
+  if (!exists(sourcePath)) return { error: `input not found: ${sourcePath}` };
+  if (!exists(targetPath)) return { error: `nothing to verify, neither working nor final output exists for ${prefix}` };
 
-  const before = JSON.parse(fs.readFileSync(source, 'utf8').replace(/^﻿/, ''));
-  const after = JSON.parse(fs.readFileSync(target, 'utf8').replace(/^﻿/, ''));
-
+  const before = readJson(sourcePath);
+  const after = readJson(targetPath);
   const problems = [];
+
+  return stage === 'clean'
+    ? verifyClean(before, after, problems, prefix, targetPath)
+    : verifyPunctuate(before, after, problems, prefix, targetPath);
+}
+
+function verifyClean(before, after, problems, prefix, targetPath) {
+  // 按 start 配对：cleaned 允许整段消失，但留下来的段必须还是原来那一段
+  const sourceByStart = new Map(before.map((s) => [String(s.start), s]));
+
+  for (let i = 0; i < after.length; i++) {
+    const b = after[i];
+    const a = sourceByStart.get(String(b.start));
+
+    if (!a) {
+      problems.push({ segment: i, kind: 'unknown-segment', detail: `start ${b.start} is not in the source` });
+      continue;
+    }
+    if (a.end !== b.end || a.avg_logprob !== b.avg_logprob) {
+      problems.push({ segment: i, kind: 'timestamp', detail: `${a.start}-${a.end} -> ${b.start}-${b.end}` });
+    }
+
+    const kept = words(b.text);
+    if (kept.length === 0) {
+      problems.push({ segment: i, kind: 'empty-segment', detail: 'delete the element instead of emptying it' });
+    } else if (!isSubsequence(kept, words(a.text))) {
+      problems.push({ segment: i, kind: 'not-a-subsequence', detail: 'a word was invented, altered, or reordered' });
+    }
+  }
+
+  const droppedStarts = before.length - after.length;
+  return {
+    prefix, stage: 'clean', target: targetPath,
+    segmentsBefore: before.length, segmentsAfter: after.length, segmentsDropped: droppedStarts,
+    wordsBefore: before.reduce((n, s) => n + words(s.text).length, 0),
+    wordsAfter: after.reduce((n, s) => n + words(s.text).length, 0),
+    ok: problems.length === 0, problems,
+  };
+}
+
+function verifyPunctuate(before, after, problems, prefix, targetPath) {
   if (before.length !== after.length) {
     problems.push({ segment: null, kind: 'segment-count', detail: `${before.length} -> ${after.length}` });
   }
 
-  const shared = Math.min(before.length, after.length);
-  let punctuated = 0;
   let sentences = 0;
-
-  for (let i = 0; i < shared; i++) {
+  for (let i = 0; i < Math.min(before.length, after.length); i++) {
     const a = before[i];
     const b = after[i];
 
@@ -173,34 +239,35 @@ function verify(prefix, sourceOverride) {
       }
     }
 
-    if (b.text !== a.text) punctuated++;
     sentences += (b.text.match(/[.!?]["')\]]?(\s|$)/g) || []).length;
     if (!/[.!?]["')\]]?$/.test(b.text.trim())) {
       problems.push({ segment: i, kind: 'no-terminal-mark', detail: b.text.trim().slice(-40) });
     }
   }
 
-  return { prefix, target, segments: after.length, punctuated, sentences, ok: problems.length === 0, problems };
+  return {
+    prefix, stage: 'punctuate', target: targetPath,
+    segments: after.length, sentences,
+    ok: problems.length === 0, problems,
+  };
 }
 
 function main() {
-  const [command, ...rest] = process.argv.slice(2);
+  const [command, stage, target] = process.argv.slice(2);
   let result;
 
-  if (command === 'list') {
-    const [stage, folder] = rest;
-    result = stage !== 'srt' && stage !== 'punctuate'
-      ? { error: `unknown stage "${stage}", expected "srt" or "punctuate"` }
-      : list(stage, folder);
-  } else if (command === 'verify') {
-    const [prefix, source] = rest;
-    result = prefix ? verify(prefix, source) : { error: 'verify needs a task prefix' };
-  } else {
+  if (command !== 'list' && command !== 'verify') {
     result = { error: `unknown command "${command}", expected "list" or "verify"` };
+  } else if (!STAGE[stage]) {
+    result = { error: `unknown stage "${stage}", expected "clean" or "punctuate"` };
+  } else if (command === 'list') {
+    result = list(stage, target);
+  } else {
+    result = target ? verify(stage, target) : { error: 'verify needs a task prefix' };
   }
 
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-  process.exitCode = result.error ? 1 : 0;
+  process.exitCode = result.error || result.ok === false ? 1 : 0;
 }
 
 main();
