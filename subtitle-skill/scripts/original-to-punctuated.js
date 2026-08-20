@@ -2,25 +2,32 @@
 'use strict';
 
 /**
- * Work-list and verification tool for the srt-to-transcript / transcript-punctuator skills.
+ * Work-list and verification tool for the original-to-cleaned / cleaned-to-punctuated skills.
  *
- * Commands:
- *   node tasks.js list   clean     <folder>   Tasks for srt-to-transcript.
- *   node tasks.js list   punctuate <folder>   Tasks for transcript-punctuator.
- *   node tasks.js verify clean     <prefix>   Check a cleaned file against its source.
- *   node tasks.js verify punctuate <prefix>   Check a punctuated file against its source.
+ * Commands, where <stage> is `clean` (for original-to-cleaned) or `punctuate` (for cleaned-to-punctuated):
  *
- * Every command prints JSON on stdout and nothing else, so the caller parses one value.
+ *   node original-to-punctuated.js list    <stage> <folder>   Tasks still to do, already filtered.
+ *   node original-to-punctuated.js prepare <stage> <prefix>   Create or resume one task's working copy.
+ *   node original-to-punctuated.js verify  <stage> <prefix>   Check a working copy against its source.
+ *   node original-to-punctuated.js publish <stage> <prefix>   Verify, then rename the working copy.
+ *
+ * Every command prints JSON on stdout and nothing else, so the caller parses one value, and exits
+ * non-zero when it failed or did not pass verification.
+ *
+ * The division of labour: everything mechanical and everything conditional lives here — which
+ * files are tasks, which are already done, when to create a working copy, whether the result may
+ * be published. The caller is left with exactly one job, judging text, and never has to decide
+ * whether to skip something.
  *
  * The pipeline these two skills sit in:
  *
  *   .original.srt   --[service: srt-to-original]-->  .original.json
- *   .original.json  --[skill: srt-to-transcript]-->  .cleaned.json
- *   .cleaned.json   --[skill: transcript-punctuator]-->  .punctuated.json
+ *   .original.json  --[skill: original-to-cleaned]-->  .cleaned.json
+ *   .cleaned.json   --[skill: cleaned-to-punctuated]-->  .punctuated.json
  *   .punctuated.json --[service: align-media, then the rest of the chain]-->  .srt
  *
  * Each stage reads one suffix and writes another, so "has this stage run?" is answered by
- * "does its output exist?" and by nothing else. That is why the model half of srt-to-transcript
+ * "does its output exist?" and by nothing else. That is why the model half of original-to-cleaned
  * writes `.cleaned.json` rather than editing `.original.json` in place: sharing a name with the
  * service's product would make the two stages indistinguishable.
  *
@@ -62,9 +69,16 @@ function taskPrefix(filePath) {
   return path.join(dir, dot === -1 ? base : base.slice(0, dot));
 }
 
-/** True when a directory component contains a dot, which the service's prefix rule cannot survive. */
+/**
+ * True when a directory component contains a dot, which the prefix rule of step 0 cannot survive.
+ *
+ * Checked against the resolved absolute path, for two reasons. It is what step 0 actually sees, so
+ * a dot in a parent directory outside the scanned folder is caught rather than missed. And it keeps
+ * a relative argument from producing a false alarm: `path.dirname("./a.original.json")` is `"."`,
+ * which would otherwise flag every file in the folder as unsafe when the caller passes `.`.
+ */
 function dirtyPath(filePath) {
-  return path.dirname(filePath).includes('.');
+  return path.dirname(path.resolve(filePath)).includes('.');
 }
 
 /** Every regular file under `root`, recursively. */
@@ -85,31 +99,50 @@ const exists = (p) => fs.existsSync(p);
 const readJson = (p) => JSON.parse(fs.readFileSync(p, 'utf8').replace(/^﻿/, ''));
 
 /**
- * Build the work list for one stage: every prefix that has the stage's input,
- * marked `skip` when the stage's output already exists.
+ * Build the work list for one stage.
+ *
+ * `tasks` holds only what is actually to be done — every filtering decision is made here, so the
+ * caller iterates the list and processes every entry, with no "should I skip this one?" left to
+ * judgement. Anything excluded moves to `excluded` with a reason, purely so the caller can
+ * mention it in its report.
  */
 function list(stage, folder) {
   if (!folder || !fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) {
     return { error: `not a directory: ${folder}` };
   }
 
+  // 一律换算成绝对路径再往下走：产出的每个 path 都要能被调用方原样使用，
+  // 而调用方的工作目录未必是这里的工作目录
+  folder = path.resolve(folder);
+
   const { input, output } = STAGE[stage];
   const prefixes = [...new Set(walk(folder).map(taskPrefix))].sort();
   const tasks = [];
+  const excluded = [];
 
   for (const prefix of prefixes) {
     const inputPath = prefix + input;
     if (!exists(inputPath)) continue;
 
+    const name = path.basename(prefix);
+
+    // 目录名里带点：服务取的是整条路径的第一个点，和这里的算法不一致，
+    // 同一个任务会被算成两个前缀。不是跳过就能了事的情况，必须报出来。
+    if (dirtyPath(inputPath)) {
+      excluded.push({ name, prefix, reason: 'unsafe-path', detail: 'a directory in the path contains a dot' });
+      continue;
+    }
+    if (exists(prefix + output)) {
+      excluded.push({ name, prefix, reason: 'already-done', detail: `${output} already exists` });
+      continue;
+    }
+
     tasks.push({
       prefix,
-      name: path.basename(prefix),
+      name,
       inputPath,
       outputPath: prefix + output,
       workingPath: prefix + output + '.working',
-      skip: exists(prefix + output),
-      resuming: exists(prefix + output + '.working'),
-      unsafePath: dirtyPath(inputPath),
     });
   }
 
@@ -119,9 +152,68 @@ function list(stage, folder) {
     inputSuffix: input,
     outputSuffix: output,
     taskCount: tasks.length,
-    pendingCount: tasks.filter((t) => !t.skip).length,
     tasks,
+    excludedCount: excluded.length,
+    excluded,
   };
+}
+
+/**
+ * Make sure a task's working copy exists, and report what is in it.
+ *
+ * Copying is done here rather than by the caller for the same reason the filtering is: it is a
+ * conditional mechanical step, and getting it wrong in either direction is costly — recreating an
+ * existing working copy throws away everything an interrupted run had already finished, while
+ * failing to create one leaves the edits with nowhere to go.
+ *
+ * The copy is what keeps `start`, `end` and `avg_logprob` byte-identical to the input: those
+ * numbers are never retyped, so they cannot drift.
+ */
+function prepare(stage, prefix) {
+  const { input, output } = STAGE[stage];
+  const inputPath = prefix + input;
+  const workingPath = prefix + output + '.working';
+
+  if (!exists(inputPath)) return { error: `input not found: ${inputPath}` };
+
+  const resumed = exists(workingPath);
+  if (!resumed) {
+    fs.copyFileSync(inputPath, workingPath);
+  }
+
+  const segments = readJson(workingPath);
+  return {
+    prefix,
+    stage,
+    workingPath,
+    outputPath: prefix + output,
+    resumed,
+    segmentCount: segments.length,
+  };
+}
+
+/**
+ * Publish a finished task: verify first, then rename the working copy onto the final name.
+ *
+ * Verification is not optional and not separable — a working copy that fails its stage's
+ * invariants must never become the file the next stage reads, so the rename is gated on it here
+ * instead of relying on the caller to check first.
+ */
+function publish(stage, prefix) {
+  const result = verify(stage, prefix);
+  if (result.error) return result;
+  if (!result.ok) {
+    return { ...result, published: false, detail: 'not renamed: fix the problems and run publish again' };
+  }
+
+  const { output } = STAGE[stage];
+  const workingPath = prefix + output + '.working';
+  const outputPath = prefix + output;
+
+  if (exists(workingPath)) {
+    fs.renameSync(workingPath, outputPath);
+  }
+  return { ...result, published: true, outputPath };
 }
 
 /** Words as the aligner effectively sees them: case-folded, stripped of everything but letters/digits. */
@@ -252,18 +344,20 @@ function verifyPunctuate(before, after, problems, prefix, targetPath) {
   };
 }
 
+const COMMANDS = { list, prepare, verify, publish };
+
 function main() {
   const [command, stage, target] = process.argv.slice(2);
   let result;
 
-  if (command !== 'list' && command !== 'verify') {
-    result = { error: `unknown command "${command}", expected "list" or "verify"` };
+  if (!COMMANDS[command]) {
+    result = { error: `unknown command "${command}", expected one of ${Object.keys(COMMANDS).join(', ')}` };
   } else if (!STAGE[stage]) {
     result = { error: `unknown stage "${stage}", expected "clean" or "punctuate"` };
-  } else if (command === 'list') {
-    result = list(stage, target);
+  } else if (!target) {
+    result = { error: `${command} needs a ${command === 'list' ? 'folder' : 'task prefix'}` };
   } else {
-    result = target ? verify(stage, target) : { error: 'verify needs a task prefix' };
+    result = COMMANDS[command](stage, target);
   }
 
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
