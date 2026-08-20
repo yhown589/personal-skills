@@ -67,8 +67,40 @@ const STAGE = {
  * `minGap` is what counts as a safe place to cut: a sentence split across two windows aligns as two
  * halves and the seam is always wrong. `maxGap` is the one that must never be relaxed — any gap
  * this long is audio with no text, and it has to fall BETWEEN windows rather than inside one.
+ *
+ * `padCap` / `padFraction` then give every window a little slack by growing it into the silence on
+ * either side. Cutting on every large gap is what keeps uncovered audio out of the windows, but it
+ * also produces the occasional very short window — an isolated line between two long non-speech
+ * stretches. A window whose length equals its speech has zero tolerance: if the subtitle is a
+ * second off from this particular release, the words it is looking for are not in the window at
+ * all. Padding buys that tolerance back. Measured on a real episode, ±1s of padding lifts the
+ * tightest window from 0.00s of slack to 2.00s, at the cost of re-covering 71 of the 308 seconds
+ * of non-speech — and that 71s sits at the window edges, right next to real words the aligner can
+ * anchor on, rather than as a hole in the middle with nothing nearby.
+ *
+ * Taking a fraction of the gap (rather than a flat amount) is what keeps two neighbouring windows
+ * from ever overlapping: each takes at most a third, so together they can never claim the gap.
  */
-const MERGE = { target: 100, max: 150, minGap: 0.5, maxGap: 3 };
+const MERGE = { target: 100, max: 150, minGap: 0.5, maxGap: 3, padCap: 1.0, padFraction: 1 / 3 };
+
+/**
+ * Bounds on how long one cue may claim, applied to the text that actually survived.
+ *
+ * A cue's duration is not evidence that anyone speaks for that long. Real subtitles hold a caption
+ * across an advertising break, and auto-generated ones hallucinate on silence — a real example from
+ * a 2024 debate transcript is a single cue running 00:51:17 → 00:58:50, seven and a half minutes,
+ * whose text is one sentence followed by "you" repeated several hundred times. Left alone that
+ * becomes one 453-second alignment window: several gigabytes of VRAM for a stretch of audio that is
+ * mostly advertising.
+ *
+ * `rate` is a floor on speech rate — at half a word per second, ten words can justify twenty
+ * seconds and no more. `floor` keeps a one-word cue from being squeezed to nothing, and `hardCap`
+ * bounds the damage when the text is junk that inflates the word count.
+ *
+ * Only ever shortens, and only from the end: the speech in these cues sits at the start, and the
+ * rest is whatever the caption was held over.
+ */
+const CUE_LIMIT = { rate: 0.5, floor: 3, hardCap: 30 };
 
 /** Timecode line. Loose on purpose — a `.srt` extension does not promise a well-formed file. */
 const TIME_LINE = /(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})/;
@@ -229,17 +261,27 @@ function mergeCues(cues) {
     const end = bestEnd >= 0 ? bestEnd : lastWithinCap;
     segments.push({
       text: cues.slice(groupStart, end + 1).map((c) => c.text).join(' '),
-      start: round3(startTime),
-      end: round3(cues[end].end),
+      start: startTime,
+      end: cues[end].end,
       // External subtitles carry no ASR confidence. 1 is also a sentinel: a real logprob is always
       // negative, so this value marks a segment that was never transcribed. Nothing thresholds it.
       avg_logprob: 1.0,
-      forcedCut: forced,
     });
     groupStart = end + 1;
   }
 
-  return segments.map(({ forcedCut, ...seg }) => seg);
+  return padSegments(segments);
+}
+
+/** Grow every window into the silence on either side, for the reasons in the MERGE comment. */
+function padSegments(segments) {
+  return segments.map((seg, i) => {
+    const gapBefore = i > 0 ? seg.start - segments[i - 1].end : seg.start;
+    const gapAfter = i + 1 < segments.length ? segments[i + 1].start - seg.end : Infinity;
+    const left = Math.min(MERGE.padCap, Math.max(0, gapBefore) * MERGE.padFraction);
+    const right = Math.min(MERGE.padCap, Math.max(0, gapAfter) * MERGE.padFraction);
+    return { ...seg, start: round3(Math.max(0, seg.start - left)), end: round3(seg.end + right) };
+  });
 }
 
 // ---------------------------------------------------------------- task listing
@@ -458,12 +500,17 @@ function publish(stage, prefix) {
 
   if (stage === 'clean') {
     const source = new Map(parseSrt(readSubtitle(prefix + input)).map((c) => [c.index, c]));
-    const kept = readJson(workingPath).map((e) => ({
-      index: e.index,
-      start: source.get(e.index).start,
-      end: source.get(e.index).end,
-      text: e.text.trim(),
-    }));
+    let clampedCues = 0;
+    const kept = readJson(workingPath).map((e) => {
+      const origin = source.get(e.index);
+      const text = e.text.trim();
+      // Bounded here rather than at parse time so the limit sees the surviving text: a cue whose
+      // hallucinated filler the caller just deleted should be judged on what is left of it.
+      const allowance = Math.min(CUE_LIMIT.hardCap, Math.max(CUE_LIMIT.floor, words(text).length / CUE_LIMIT.rate));
+      const end = Math.min(origin.end, origin.start + allowance);
+      if (end < origin.end) clampedCues++;
+      return { index: e.index, start: origin.start, end, text };
+    });
     const segments = mergeCues(kept);
     writeJson(outputPath, segments);
     fs.unlinkSync(workingPath);
@@ -474,6 +521,7 @@ function publish(stage, prefix) {
     return {
       ...result, published: true, outputPath,
       segments: segments.length,
+      clampedCues,
       longestSegment: round3(Math.max(...segments.map((s) => s.end - s.start))),
       gapsCutOn: holes.length,
       audioLeftOutside: round3(holes.reduce((a, b) => a + b, 0)),
